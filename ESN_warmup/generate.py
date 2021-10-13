@@ -14,7 +14,7 @@ testing = None
 min_next_change = 30
 max_next_change = 120
 
-signal_frequency = 1/15
+signal_frequency = 1/20
 
 def rand_int(l, u):
     return math.floor(random.random() * (u - l)) + l

@@ -10,13 +10,13 @@ def sigmoid(x):
 
 class ESN:
 
-    scale_input = 0.73
+    scale_input = 0.3
     scale_bias = 0.02
-    scale_state = 0.00
+    scale_state = 0.05
     max_param = 1
     min_param = -1
-    params_mu = 1
-    ridge_k = 0.001
+    params_mu = 0.1
+    ridge_k = 0.00001
     wash_out = 0
 
     def __init__(self, dataPath, nReservoir):
@@ -42,10 +42,11 @@ class ESN:
         self.save(self.history, "history")
         self.save(self.trainable, "trainable")
         self.save(self.stateWeights, "stateWeights")
-        self.save(self.input, "input")
+        self.save(self.input, "inputWeights")
         self.save(self.bias, "bias")
         self.save(self.predictions, "predictions")
         self.save(self.trainset.T[1], "labels")
+        self.save(self.trainset.T[0], "inputs")
 
     def getRandomState(self):
         return self.initParams(self.nNeurons)
@@ -115,9 +116,6 @@ class ESN:
         history = self.harvest()
         self.history = history
 
-        if graphical:
-            print("Training")
-
         # Ridge regression
         ys = self.trainset.T[1][ESN.wash_out:]
         identity = np.identity(self.nNeurons)
@@ -129,11 +127,11 @@ class ESN:
         biasIdentity = ESN.ridge_k * identity
         self.trainable = np.dot(np.dot(np.linalg.inv(similiarity + biasIdentity), history.T), ys)
 
-        print("Fast test loss:")
-        print(self.fastTest())
+        #print("Fast test loss:")
+        #print(self.fastTest())
 
-        print("Test loss")
-        loss = self.test(self.trainset, graphical=graphical)
+        print("Train loss")
+        loss = self.test(self.trainset, graphical=False)
         print(loss)
 
         return loss

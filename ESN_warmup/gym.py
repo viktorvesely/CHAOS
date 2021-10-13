@@ -15,7 +15,8 @@ def train():
     wave.train(graphical=True)
     wave.saveModel()
 
-    # print(wave.test())
+    print("Test loss")
+    print(wave.test(graphical=True))
 
     input("Press [Enter] to finish")
 
