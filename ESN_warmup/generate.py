@@ -6,7 +6,7 @@ from datetime import datetime
 
 random.seed(datetime.now())
 
-n_training = 10000
+n_training = 4999
 n_testing = 1000
 training = None
 testing = None
@@ -14,7 +14,7 @@ testing = None
 min_next_change = 30
 max_next_change = 120
 
-signal_frequency = 1/20
+signal_frequency = 1/19
 
 def rand_int(l, u):
     return math.floor(random.random() * (u - l)) + l

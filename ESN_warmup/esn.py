@@ -10,14 +10,14 @@ def sigmoid(x):
 
 class ESN:
 
-    scale_input = 0.3
-    scale_bias = 0.02
-    scale_state = 0.05
+    scale_input = 1.8
+    scale_bias = 0.2
+    spectral_radius = 1.1
+    params_mu = 0
+    ridge_k = 0.0001
+    wash_out = 0
     max_param = 1
     min_param = -1
-    params_mu = 0.1
-    ridge_k = 0.00001
-    wash_out = 0
 
     def __init__(self, dataPath, nReservoir):
 
@@ -29,7 +29,7 @@ class ESN:
         n = self.nNeurons
 
         self.state = None
-        self.stateWeights = self.gaussianParams(n, n) * ESN.scale_state
+        self.stateWeights = self.get_state_weights()
         self.trainable = self.gaussianParams(n)
         self.bias = self.gaussianParams(n)  * ESN.scale_bias
         self.input = self.gaussianParams(n) * ESN.scale_input
@@ -38,6 +38,17 @@ class ESN:
 
         self.t = 0
     
+    def get_spectral_radius(self, matrix):
+        eigens = np.resize(np.linalg.eigvals(matrix), (matrix.size, 1))
+        sR = np.linalg.norm(np.max(eigens))
+        return sR
+
+    def get_state_weights(self):
+        weights = self.gaussianParams(self.nNeurons, self.nNeurons)
+        weights *= ESN.spectral_radius / self.get_spectral_radius(weights)
+        return weights
+
+
     def saveModel(self):
         self.save(self.history, "history")
         self.save(self.trainable, "trainable")
