@@ -19,10 +19,10 @@ g_K = 0.282
 E_K = -0.077
 
 g_K1 = 0.6047
-E_K1 = None # Around -25 mV 
+E_K1 = -0.05 # TODO verify this
 
 g_b = 0.03921
-E_b = -59.87
+E_b = -0.05987
 
 
 #--------------Currents---------------------
@@ -82,29 +82,30 @@ def alpha_j(V):
     vals = np.zeros(V.shape, dtype=np.double)
     temp1 = -127140 * np.exp(0.2444 * V) - 3.474 * (10 ** (-5)) * np.exp(-0.04391 * V)
     temp2 = (V + 37.78) / (1 + np.exp(0.311 * (V + 79.23)))
-    vals[~cond] = temp1 * temp2
+    np.putmask(vals, ~cond, temp1 * temp2)
     return vals
 
 def alpha_h(V):
     cond = V >= -0.04
     vals = np.zeros(V.shape, dtype=np.double)
-    vals[~cond] = 0.135 * np.exp((80 + V) / -6.8)
+    np.putmask(vals, ~cond, 0.135 * np.exp((80 + V) / -6.8))
     return vals
 
 
 def beta_h(V):
     cond = V >= -0.04
     vals = np.zeros(V.shape, dtype=np.double)
-    vals[cond] =  1 / (0.13 * (1 + np.exp((V + 10.66) / (-11.1))))
-    vals[~cond] = 3.56 * np.exp(0.079 * V) + 3.1 * 10 ** (-5) * np.exp(0.35 * V)
+    np.putmask(vals, cond, 1 / (0.13 * (1 + np.exp((V + 10.66) / (-11.1)))))
+    np.putmask(vals, ~cond, 3.56 * np.exp(0.079 * V) + 3.1 * 10 ** (-5) * np.exp(0.35 * V))
     return vals
         
 
 def beta_j(V):
     cond = V >= -0.04
     vals = np.zeros(V.shape, dtype=np.double)
-    vals[cond] = 0.3 * np.exp(-2.535 * 10 ** (-7) * V) / (1 + np.exp(-0.1 * (V + 32)))
-    vals[~cond] = 0.1212 * np.exp(-0.01052 * V) / (1 + np.exp(-0.1378 * (V + 40.14)))
+    np.putmask(vals, cond, 0.3 * np.exp(-2.535 * 10 ** (-7) * V) / (1 + np.exp(-0.1 * (V + 32))))
+    np.putmask(vals, ~cond, 0.1212 * np.exp(-0.01052 * V) / (1 + np.exp(-0.1378 * (V + 40.14))))
+    return vals
 
 def alpha_m(V):
     return 0.32 * (V + 47.13) / (1 - np.exp(-0.1 * (V + 47.13)))
@@ -127,7 +128,7 @@ def beta_f(V):
 def X_i(V):
     cond = V >= -0.1
     vals = np.ones(V.shape, dtype=np.double)
-    vals[cond] = 2.837 * (np.exp(0.04 * (V + 77)) - 1) / ((V + 77) * np.exp(V + 35))
+    np.putmask(vals, cond, 2.837 * (np.exp(0.04 * (V + 77)) - 1) / ((V + 77) * np.exp(V + 35)))
     return vals
 
 def Kp(V):

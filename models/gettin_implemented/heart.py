@@ -1,18 +1,27 @@
 import cell
 import numpy as np
 import math 
+import sys
+
+import cv2
+
+t_start = 0
+t_end = 10
+dt = 0.02
+stim_freq = 0.5
 
 resting_potential = -0.08
 gridx = 100
 gridy = 100
 tissue_resistivity = 80
-rho = np.ones((gridx, gridy), dtype=np.double) * tissue_resistivity
 surface = 0.01 # m^2
 thickness = 0.0015 # m 
 SV = 1 / thickness # surface to volume ratio
 Cm = 1 * 10 ** (-6)
 
-stim_freq = 0.5
+c_min = -0.09
+c_max = 0.025
+
 def I_stim(t):
     I = np.zeros((gridx, gridy)) 
     I[gridx // 2, gridy // 2] = math.cos(2 * math.pi * stim_freq * t)
@@ -35,36 +44,38 @@ def make_state():
 
 s0 = make_state()
 
+RP = np.ones((gridx, gridy)) * resting_potential
+
 s0["V"] = np.ones((gridx, gridy), dtype=np.double) * resting_potential
 
 s0["m"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
-    cell.alpha_m(resting_potential),
-    cell.beta_m(resting_potential)
+    cell.alpha_m(RP),
+    cell.beta_m(RP)
 )
 
 s0["j"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
-    cell.alpha_j(resting_potential),
-    cell.beta_j(resting_potential)
+    cell.alpha_j(RP),
+    cell.beta_j(RP)
 )
 
 s0["h"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
-    cell.alpha_h(resting_potential),
-    cell.beta_h(resting_potential)
+    cell.alpha_h(RP),
+    cell.beta_h(RP)
 )
 
 s0["d"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
-    cell.alpha_d(resting_potential),
-    cell.beta_d(resting_potential)
+    cell.alpha_d(RP),
+    cell.beta_d(RP)
 )
 
 s0["f"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
-    cell.alpha_f(resting_potential),
-    cell.beta_f(resting_potential)
+    cell.alpha_f(RP),
+    cell.beta_f(RP)
 )
 
 s0["X"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
-    cell.alpha_X(resting_potential),
-    cell.beta_X(resting_potential)
+    cell.alpha_X(RP),
+    cell.beta_X(RP)
 )
 
 s0["Ca_i"] = np.ones((gridx, gridy), dtype=np.double) * cell.Ca_i_initial
@@ -89,7 +100,7 @@ def geometric(V):
     dWidth = surface / gridx
     dHeight = surface / gridy
     
-    gradient = np.gradient(V, varargs=(dWidth, dHeight))
+    gradient = np.gradient(V, dWidth, dHeight)
     
     geometry = np.array(gradient) / (SV * tissue_resistivity)
 
@@ -173,9 +184,54 @@ def dStatedt(s, t):
 
     # State variable update - V_m
     dState["V"] = (-1 / Cm) * (I_ions - I_inj - geometry)
+
+    return dState
     
 
 
+
+def solve(trajectory=False):
+    duration = t_end - t_start
+    steps = int(duration / dt)
+    states = [s0]
+    state = s0
+    t = t_start
+
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    video = cv2.VideoWriter("./out/prop.avi", fourcc, steps / duration, (gridx,gridy))
+
+    for _ in range(steps):
+        sys.stdout.write('t=%s\r' % str(t))
+        dState = dStatedt(state, t)
+        newState = make_state()
+
+        for key, stateVar in dState.items():
+            newState[key] = state[key] + stateVar * dt
+
+        if trajectory:
+            states.append(newState)
+        
+        V = state["V"] 
+        col = np.clip(
+            (V - c_min) / (c_max - c_min),
+            0,
+            1
+        )
+        img = np.zeros((gridx, gridy, 3))
+        img[:,:,0] = col
+        img[:,:,2] = col
+        video.write(img)
+
+        state = newState
+        t += dt
+    
+    cv2.destroyAllWindows()
+    video.release()
+    print()
+    
+    return states if trajectory else None
+
+solve()
 
     
 
