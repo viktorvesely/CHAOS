@@ -1,0 +1,23 @@
+Simulation code for:
+
+Mechanical cell-substrate feedback explains pairwise and collective endothelial cell behavior in vitro
+René F.M. van Oers and Roeland M.H. Merks
+Centrum Wiskunde & Informatica, Amsterdam
+Contact: merks@cwi.nl
+
+INSTALLATION
+------------
+
+Make sure you have GNU Make and a GNU C Compiler installed on your system (e.g. MinGW for Windows).
+
+Then, from the command line, type: 
+
+cd C-Source-Code
+make
+
+
+USAGE
+-----
+
+See main file of Supporting Information
+
