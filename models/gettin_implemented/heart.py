@@ -2,29 +2,35 @@ import cell
 import numpy as np
 import math 
 import sys
-
-import cv2
+import matplotlib.pyplot as plt
+import json
 
 t_start = 0
-t_end = 10
-dt = 0.02
+t_end = 5
+dt = 0.001
 stim_freq = 0.5
+stim_amplitude = 0 # uA
 
-resting_potential = -0.08
-gridx = 100
-gridy = 100
+videoOut = False
+
+resting_potential = -94 # mV
+gridx = 200
+gridy = 200
+midx = gridx // 2
+midy = gridy // 2
 tissue_resistivity = 80
-surface = 0.01 # m^2
-thickness = 0.0015 # m 
-SV = 1 / thickness # surface to volume ratio
-Cm = 1 * 10 ** (-6)
+cell_size = 500 * 10 ** (-4) # cm
+surface = gridx * gridy * cell_size ** 2  # cm^2
+thickness = 0.15 # m 
+SV = thickness # surface to volume ratio TODO maybe it's 1 / thickness
+Cm = 1
 
-c_min = -0.09
-c_max = 0.025
+c_min = -90 # mv
+c_max = 10 # mV
 
 def I_stim(t):
     I = np.zeros((gridx, gridy)) 
-    I[gridx // 2, gridy // 2] = math.cos(2 * math.pi * stim_freq * t)
+    I[midx, midy] = abs(math.cos(2 * math.pi * stim_freq * t)) * stim_amplitude
     return I
 
 #---------state_variables-------------
@@ -96,15 +102,19 @@ def make_other():
         "I_b" : None
     }
 
-def geometric(V):
-    dWidth = surface / gridx
-    dHeight = surface / gridy
-    
-    gradient = np.gradient(V, dWidth, dHeight)
-    
-    geometry = np.array(gradient) / (SV * tissue_resistivity)
 
-    return geometry
+def spatial_term(V):
+    
+    RN = np.roll(V, (0,-1), (0,1)) # right neighbor
+    LN = np.roll(V, (0,+1), (0,1)) # left neighbor
+    TN = np.roll(V, (-1,0), (0,1)) # top neighbor
+    BN = np.roll(V, (+1,0), (0,1)) # bottom neighbor
+
+    spatial = (RN - V + LN - V) / (2 * SV * cell_size ** (2) * tissue_resistivity) 
+    spatial += (TN - V + BN - V) / (2 * SV * cell_size ** (2) * tissue_resistivity)
+    # TODO missing the t + dt step <- how to get this? : (((( 
+
+    return spatial
  
 def gates(s, dState):
     for gate in gate_list:
@@ -167,7 +177,7 @@ def ions(s, dState, o):
         s["Ca_i"]
     )
 
-    return o["I_Na"] + o["I_si"] + o["I_K"] + o["I_K1"] + o["I_Kp"] + o["I_b"]
+    return o["I_Na"] + o["I_K"] + o["I_K1"] + o["I_Kp"] + o["I_b"]  + o["I_si"]
 
 
 def dStatedt(s, t):
@@ -180,29 +190,35 @@ def dStatedt(s, t):
     # Gather data for V_m
     I_ions = ions(s, dState, o)
     I_inj = I_stim(t)
-    geometry = geometric(s["V"])
+    geometry = spatial_term(s["V"])
 
     # State variable update - V_m
     dState["V"] = (-1 / Cm) * (I_ions - I_inj - geometry)
 
-    return dState
+    return dState, o
     
 
 
 
-def solve(trajectory=False):
+def solve(trajectory=False, videoOut=False):
     duration = t_end - t_start
     steps = int(duration / dt)
     states = [s0]
     state = s0
     t = t_start
+    ts = np.arange(t_start, t_end, dt)
 
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    video = cv2.VideoWriter("./out/prop.avi", fourcc, steps / duration, (gridx,gridy))
+    I_si = []
+    I_Na = []
+    Vs = []
+    I_K = []
+        
+    if videoOut:
+        grids = []
 
     for _ in range(steps):
         sys.stdout.write('t=%s\r' % str(t))
-        dState = dStatedt(state, t)
+        dState, other = dStatedt(state, t)
         newState = make_state()
 
         for key, stateVar in dState.items():
@@ -211,28 +227,49 @@ def solve(trajectory=False):
         if trajectory:
             states.append(newState)
         
-        V = state["V"] 
-        col = np.clip(
-            (V - c_min) / (c_max - c_min),
-            0,
-            1
-        )
-        img = np.zeros((gridx, gridy, 3))
-        img[:,:,0] = col
-        img[:,:,2] = col
-        video.write(img)
+        I_si.append(other["I_si"][midx, midy])
+        Vs.append(state["V"][midx, midy])
+        I_Na.append(other["I_Na"][midx, midy])
+        I_K.append(other["I_K"][midx, midy])
+
+        if videoOut:
+            V = state["V"] 
+            col = np.clip(
+                (V - c_min) / (c_max - c_min),
+                0,
+                1
+            )
+            grids.append(col.tolist())
 
         state = newState
         t += dt
     
-    cv2.destroyAllWindows()
-    video.release()
     print()
+
+    if videoOut:
+        with open("./out/video.js", 'w') as f:
+            jString = "var data = {}; var dt = {};".format(json.dumps(grids), dt)
+            f.write(jString)
+
+
+    fig, axs = plt.subplots(2, 2)
+    fig.suptitle('Debug')
+    axs[0 , 0].title.set_text('Vm')
+    axs[0 , 0].plot(ts, Vs)
+    axs[1 , 0].title.set_text('I_si')
+    axs[1 , 0].plot(ts, I_si)
+    axs[0 , 1].title.set_text('I_K')
+    axs[0 , 1].plot(ts, I_K)
+    axs[1 , 1].title.set_text('I_Na')
+    axs[1 , 1].plot(ts, I_Na)
+    plt.show(block=False)
     
     return states if trajectory else None
 
-solve()
+solve(videoOut=videoOut)
+print("Press [Enter] to close")
+input("")
 
-    
+
 
     
