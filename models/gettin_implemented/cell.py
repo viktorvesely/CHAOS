@@ -20,7 +20,7 @@ g_K = 0.282
 E_K = -77
 
 g_K1 = 0.6047
-E_K1 = -96.81 # TODO verify this
+E_K1 = -84 # TODO verify this
 
 g_b = 0.03921
 E_b = -59.87

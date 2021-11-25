@@ -1,21 +1,25 @@
 import cell
 import numpy as np
-import math 
 import sys
 import matplotlib.pyplot as plt
 import json
 
 t_start = 0
-t_end = 5
-dt = 0.001
-stim_freq = 0.5
-stim_amplitude = 0 # uA
+t_end = 1
+dt = 0.0000005
 
-videoOut = False
+stim_start = 0.05
+stim_end = 0.20
+stim_amplitude = 10 # uA
 
-resting_potential = -94 # mV
-gridx = 200
-gridy = 200
+videoOut = True
+spatial_influence = False
+debug_graphs = True
+track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
+
+resting_potential = -81.1 # mV
+gridx = 2
+gridy = 2
 midx = gridx // 2
 midy = gridy // 2
 tissue_resistivity = 80
@@ -29,8 +33,8 @@ c_min = -90 # mv
 c_max = 10 # mV
 
 def I_stim(t):
-    I = np.zeros((gridx, gridy)) 
-    I[midx, midy] = abs(math.cos(2 * math.pi * stim_freq * t)) * stim_amplitude
+    stim = stim_amplitude if (t >= stim_start) and (t <= stim_end) else 0
+    I = np.ones((gridx, gridy)) * stim
     return I
 
 #---------state_variables-------------
@@ -99,12 +103,16 @@ def make_other():
         "I_K" : None,
         "I_K1" : None,
         "I_Kp" : None,
-        "I_b" : None
+        "I_b" : None,
+        "I_stim": None,
+        "X_i": None
     }
 
 
 def spatial_term(V):
-    
+    if not spatial_influence:
+        return 0
+
     RN = np.roll(V, (0,-1), (0,1)) # right neighbor
     LN = np.roll(V, (0,+1), (0,1)) # left neighbor
     TN = np.roll(V, (-1,0), (0,1)) # top neighbor
@@ -136,10 +144,12 @@ def ions(s, dState, o):
         s["j"]
     )
     
+    o["X_i"] = cell.X_i(s["V"])
+
     o["I_K"] = cell.I_K(
         s["V"],
         s["X"],
-        cell.X_i(s["V"])
+        o["X_i"]
     )
 
     o["I_K1"] = cell.I_K1(
@@ -190,6 +200,7 @@ def dStatedt(s, t):
     # Gather data for V_m
     I_ions = ions(s, dState, o)
     I_inj = I_stim(t)
+    o["I_stim"] = I_inj
     geometry = spatial_term(s["V"])
 
     # State variable update - V_m
@@ -198,25 +209,26 @@ def dStatedt(s, t):
     return dState, o
     
 
-
+def fill_track(track, s, o):
+    for var in track_vars:
+        value = s[var][midx, midy] if var in s else o[var][midx, midy]
+        track[var].append(value)
 
 def solve(trajectory=False, videoOut=False):
-    duration = t_end - t_start
-    steps = int(duration / dt)
     states = [s0]
     state = s0
-    t = t_start
     ts = np.arange(t_start, t_end, dt)
 
-    I_si = []
-    I_Na = []
-    Vs = []
-    I_K = []
-        
+    track = None
+    if debug_graphs:
+        track = dict()
+        for var in track_vars:
+            track[var] = []
+
     if videoOut:
         grids = []
 
-    for _ in range(steps):
+    for t in ts:
         sys.stdout.write('t=%s\r' % str(t))
         dState, other = dStatedt(state, t)
         newState = make_state()
@@ -227,10 +239,8 @@ def solve(trajectory=False, videoOut=False):
         if trajectory:
             states.append(newState)
         
-        I_si.append(other["I_si"][midx, midy])
-        Vs.append(state["V"][midx, midy])
-        I_Na.append(other["I_Na"][midx, midy])
-        I_K.append(other["I_K"][midx, midy])
+        if debug_graphs:
+            fill_track(track, state, other)  
 
         if videoOut:
             V = state["V"] 
@@ -242,26 +252,38 @@ def solve(trajectory=False, videoOut=False):
             grids.append(col.tolist())
 
         state = newState
-        t += dt
     
     print()
 
     if videoOut:
-        with open("./out/video.js", 'w') as f:
+        with open("./out/video.js", 'w') as fi:
             jString = "var data = {}; var dt = {};".format(json.dumps(grids), dt)
-            f.write(jString)
+            fi.write(jString)
 
 
     fig, axs = plt.subplots(2, 2)
     fig.suptitle('Debug')
     axs[0 , 0].title.set_text('Vm')
-    axs[0 , 0].plot(ts, Vs)
-    axs[1 , 0].title.set_text('I_si')
-    axs[1 , 0].plot(ts, I_si)
-    axs[0 , 1].title.set_text('I_K')
-    axs[0 , 1].plot(ts, I_K)
-    axs[1 , 1].title.set_text('I_Na')
-    axs[1 , 1].plot(ts, I_Na)
+    axs[0 , 0].plot(ts, track["V"])
+    
+    axs[1 , 0].title.set_text('I')
+    axs[1 , 0].plot(ts, track["I_si"], label="I_si")
+    axs[1 , 0].plot(ts, track["I_K"], label="I_K")
+    axs[1 , 0].plot(ts, track["I_Na"], label="I_Na")
+    axs[1 , 0].plot(ts, track["I_stim"], label="I_stim")
+    axs[1 , 0].legend()
+
+    axs[0 , 1].title.set_text('Na Gates')
+    axs[0 , 1].plot(ts, track["m"], label="m")
+    axs[0 , 1].plot(ts, track["h"], label="h")
+    axs[0 , 1].plot(ts, track["j"], label="j")
+    axs[0 , 1].legend()
+
+    axs[1 , 1].title.set_text('K gates')
+    axs[1 , 1].plot(ts, track["X"], label="X")
+    axs[1 , 1].plot(ts, track["X_i"], label="X_i")
+    axs[1 , 1].legend()
+
     plt.show(block=False)
     
     return states if trajectory else None
