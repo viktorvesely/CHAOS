@@ -3,10 +3,11 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import json
+import time
 
 t_start = 0
 t_end = 1
-dt = 0.0000005
+dt = 0.00001
 
 stim_start = 0.05
 stim_end = 0.20
@@ -287,9 +288,10 @@ def solve(trajectory=False, videoOut=False):
     plt.show(block=False)
     
     return states if trajectory else None
-
+perf_start = time.perf_counter()
 solve(videoOut=videoOut)
-print("Press [Enter] to close")
+perf_end = time.perf_counter()
+print(f"Took {perf_end - perf_start} seconds. Press [Enter] to close")
 input("")
 
 
