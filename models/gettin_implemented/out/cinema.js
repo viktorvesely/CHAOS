@@ -24,12 +24,14 @@ var options = {
     },
     step: () => {
         frameId++;
-    }
+    },
+    speed: 1
 }
 
 gui.add(options, "reset");
 gui.add(options, "pause");
 gui.add(options, "step");
+gui.add(options, "speed").min(0).max(5).step(0.05);
 
 function rescale() {
     let x, y;
@@ -57,10 +59,14 @@ function init() {
 
 
 function draw() {
+    let index = Math.round(frameId);
+
+    if (index >= data.length) {
+        requestAnimationFrame(draw);
+        return;
+    };
     
-    if (frameId >= data.length) return;
-    
-    frame = data[frameId];
+    frame = data[index];
 
     ctx.fillStyle = "black"; 
     ctx.beginPath();
@@ -80,7 +86,7 @@ function draw() {
 
     time();
     
-    if (!paused) frameId++;
+    if (!paused) frameId += options.speed;
     requestAnimationFrame(draw);
 }
 

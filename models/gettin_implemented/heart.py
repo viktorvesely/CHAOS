@@ -6,32 +6,34 @@ import json
 import time
 
 t_start = 0 # ms
-t_end = 600 # ms
-dt = 0.015 # in ms. Needs to be always smaller than 1 ms and between 0.05 0.01 ms during stimulus
+t_end = 100 # ms
+dt = 0.015 # ms
+t_duration = t_end - t_start
 
 stim_start = 20 # ms
-stim_end = 80 # ms
+stim_end = 50 # ms
 stim_amplitude = 3 # uA
 
 videoOut = True
-c_min = -90 # mv
-c_max = 10 # mV
+every_nth_frame = 100
+c_min = -82 # mv
+c_max = 40 # mV
 
 spatial_influence = False
 
-debug_graphs = True
+debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 resting_potential = -81.1014 # mV
-gridx = 2
-gridy = 2
+gridx = 100
+gridy = 100
 midx = gridx // 2
 midy = gridy // 2
 tissue_resistivity = 80
 cell_size = 500 * 10 ** (-4) # cm
 surface = gridx * gridy * cell_size ** 2  # cm^2
-thickness = 8 # cm, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5841556/
-SV = thickness # surface to volume ratio TODO maybe it's 1 / thickness
+thickness = 0.08 # cm, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5841556/
+SV = thickness # surface to volume ratio - TODO maybe it's 1 / thickness
 Cm = 1
 
 
@@ -234,8 +236,17 @@ def solve(trajectory=False, videoOut=False):
     if videoOut:
         grids = []
 
-    for t in ts:
-        sys.stdout.write('t=%s\r' % str(t))
+    next_time = 0
+    next_step = (t_duration * 0.05) / 1000
+
+    next_frame = 0
+
+    for i, t in enumerate(ts):
+
+        if time.time() >= next_time:
+            sys.stdout.write('t=%s\r' % str(t))
+            next_time = time.time() + next_step 
+
         dState, other = dStatedt(state, t)
         newState = make_state()
 
@@ -248,7 +259,7 @@ def solve(trajectory=False, videoOut=False):
         if debug_graphs:
             fill_track(track, state, other)  
 
-        if videoOut:
+        if videoOut and i >= next_frame:
             V = state["V"] 
             col = np.clip(
                 (V - c_min) / (c_max - c_min),
@@ -256,6 +267,7 @@ def solve(trajectory=False, videoOut=False):
                 1
             )
             grids.append(col.tolist())
+            next_frame += every_nth_frame
 
         state = newState
     
@@ -263,36 +275,37 @@ def solve(trajectory=False, videoOut=False):
 
     if videoOut:
         with open("./out/video.js", 'w') as fi:
-            jString = "var data = {}; var dt = {};".format(json.dumps(grids), dt)
+            jString = "var data = {}; var dt = {};".format(json.dumps(grids), (dt * every_nth_frame))
             fi.write(jString)
-    
-    V_max = np.max(track["V"])
-    print(f"Vmax_mid = {V_max}")
 
-    fig, axs = plt.subplots(2, 2)
-    fig.suptitle('Debug')
-    axs[0 , 0].title.set_text('Vm')
-    axs[0 , 0].plot(ts, track["V"])
-    
-    axs[1 , 0].title.set_text('I')
-    axs[1 , 0].plot(ts, track["I_si"], label="I_si")
-    axs[1 , 0].plot(ts, track["I_K"], label="I_K")
-    #axs[1 , 0].plot(ts, track["I_Na"], label="I_Na")
-    axs[1 , 0].plot(ts, track["I_stim"], label="I_stim")
-    axs[1 , 0].legend()
+    if debug_graphs:
+        V_max = np.max(track["V"])
+        print(f"Vmax_mid = {V_max}")
 
-    axs[0 , 1].title.set_text('Na Gates')
-    axs[0 , 1].plot(ts, track["m"], label="m")
-    axs[0 , 1].plot(ts, track["h"], label="h")
-    axs[0 , 1].plot(ts, track["j"], label="j")
-    axs[0 , 1].legend()
+        fig, axs = plt.subplots(2, 2)
+        fig.suptitle('Debug')
+        axs[0 , 0].title.set_text('Vm')
+        axs[0 , 0].plot(ts, track["V"])
+        
+        axs[1 , 0].title.set_text('I')
+        axs[1 , 0].plot(ts, track["I_si"], label="I_si")
+        axs[1 , 0].plot(ts, track["I_K"], label="I_K")
+        #axs[1 , 0].plot(ts, track["I_Na"], label="I_Na")
+        axs[1 , 0].plot(ts, track["I_stim"], label="I_stim")
+        axs[1 , 0].legend()
 
-    axs[1 , 1].title.set_text('K gates')
-    axs[1 , 1].plot(ts, track["X"], label="X")
-    axs[1 , 1].plot(ts, track["X_i"], label="X_i")
-    axs[1 , 1].legend()
+        axs[0 , 1].title.set_text('Na Gates')
+        axs[0 , 1].plot(ts, track["m"], label="m")
+        axs[0 , 1].plot(ts, track["h"], label="h")
+        axs[0 , 1].plot(ts, track["j"], label="j")
+        axs[0 , 1].legend()
 
-    plt.show(block=False)
+        axs[1 , 1].title.set_text('K gates')
+        axs[1 , 1].plot(ts, track["X"], label="X")
+        axs[1 , 1].plot(ts, track["X_i"], label="X_i")
+        axs[1 , 1].legend()
+
+        plt.show(block=False)
     
     return states if trajectory else None
 perf_start = time.perf_counter()
