@@ -5,20 +5,24 @@ import matplotlib.pyplot as plt
 import json
 import time
 
-t_start = 0
-t_end = 1
-dt = 0.00001
+t_start = 0 # ms
+t_end = 600 # ms
+dt = 0.015 # in ms. Needs to be always smaller than 1 ms and between 0.05 0.01 ms during stimulus
 
-stim_start = 0.05
-stim_end = 0.20
-stim_amplitude = 10 # uA
+stim_start = 20 # ms
+stim_end = 80 # ms
+stim_amplitude = 3 # uA
 
 videoOut = True
+c_min = -90 # mv
+c_max = 10 # mV
+
 spatial_influence = False
+
 debug_graphs = True
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
-resting_potential = -81.1 # mV
+resting_potential = -81.1014 # mV
 gridx = 2
 gridy = 2
 midx = gridx // 2
@@ -26,12 +30,10 @@ midy = gridy // 2
 tissue_resistivity = 80
 cell_size = 500 * 10 ** (-4) # cm
 surface = gridx * gridy * cell_size ** 2  # cm^2
-thickness = 0.15 # m 
+thickness = 8 # cm, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5841556/
 SV = thickness # surface to volume ratio TODO maybe it's 1 / thickness
 Cm = 1
 
-c_min = -90 # mv
-c_max = 10 # mV
 
 def I_stim(t):
     stim = stim_amplitude if (t >= stim_start) and (t <= stim_end) else 0
@@ -133,6 +135,9 @@ def gates(s, dState):
 
         alpha = alphaF(s["V"])
         beta = betaF(s["V"])
+
+        if gate == "m":
+            _temp = 1 + 2
 
         dState[gate] = cell.dGatedt(s[gate], alpha, beta)
 
@@ -254,13 +259,15 @@ def solve(trajectory=False, videoOut=False):
 
         state = newState
     
-    print()
+    print("\n")
 
     if videoOut:
         with open("./out/video.js", 'w') as fi:
             jString = "var data = {}; var dt = {};".format(json.dumps(grids), dt)
             fi.write(jString)
-
+    
+    V_max = np.max(track["V"])
+    print(f"Vmax_mid = {V_max}")
 
     fig, axs = plt.subplots(2, 2)
     fig.suptitle('Debug')
@@ -270,7 +277,7 @@ def solve(trajectory=False, videoOut=False):
     axs[1 , 0].title.set_text('I')
     axs[1 , 0].plot(ts, track["I_si"], label="I_si")
     axs[1 , 0].plot(ts, track["I_K"], label="I_K")
-    axs[1 , 0].plot(ts, track["I_Na"], label="I_Na")
+    #axs[1 , 0].plot(ts, track["I_Na"], label="I_Na")
     axs[1 , 0].plot(ts, track["I_stim"], label="I_stim")
     axs[1 , 0].legend()
 
@@ -291,7 +298,7 @@ def solve(trajectory=False, videoOut=False):
 perf_start = time.perf_counter()
 solve(videoOut=videoOut)
 perf_end = time.perf_counter()
-print(f"Took {perf_end - perf_start} seconds. Press [Enter] to close")
+print(f"Solve time: {perf_end - perf_start} seconds. Press [Enter] to close")
 input("")
 
 
