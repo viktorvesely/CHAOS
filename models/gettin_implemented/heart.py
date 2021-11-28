@@ -6,7 +6,7 @@ import json
 import time
 
 t_start = 0 # ms
-t_end = 100 # ms
+t_end = 1000 # ms
 dt = 0.015 # ms
 t_duration = t_end - t_start
 
@@ -15,31 +15,32 @@ stim_end = 50 # ms
 stim_amplitude = 3 # uA
 
 videoOut = True
-every_nth_frame = 100
+every_nth_frame = 80
 c_min = -82 # mv
 c_max = 40 # mV
 
-spatial_influence = False
+spatial_influence = True
 
 debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 resting_potential = -81.1014 # mV
-gridx = 100
-gridy = 100
+gridx = 20
+gridy = 20
 midx = gridx // 2
 midy = gridy // 2
 tissue_resistivity = 80
-cell_size = 500 * 10 ** (-4) # cm
+cell_size = 200 * 10 ** (-4) # cm
 surface = gridx * gridy * cell_size ** 2  # cm^2
 thickness = 0.08 # cm, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5841556/
-SV = thickness # surface to volume ratio - TODO maybe it's 1 / thickness
+SV = 0.24 * 10 ** (4) # surface to volume ratio 
 Cm = 1
 
 
 def I_stim(t):
     stim = stim_amplitude if (t >= stim_start) and (t <= stim_end) else 0
-    I = np.ones((gridx, gridy)) * stim
+    I = np.zeros((gridx, gridy))
+    I[midx, midy] = stim
     return I
 
 #---------state_variables-------------
@@ -127,6 +128,9 @@ def spatial_term(V):
     spatial += (TN - V + BN - V) / (2 * SV * cell_size ** (2) * tissue_resistivity)
     # TODO missing the t + dt step <- how to get this? : (((( 
 
+    if np.max(np.abs(spatial)) > 0.1:
+        _temp = 1
+
     return spatial
  
 def gates(s, dState):
@@ -137,9 +141,6 @@ def gates(s, dState):
 
         alpha = alphaF(s["V"])
         beta = betaF(s["V"])
-
-        if gate == "m":
-            _temp = 1 + 2
 
         dState[gate] = cell.dGatedt(s[gate], alpha, beta)
 
