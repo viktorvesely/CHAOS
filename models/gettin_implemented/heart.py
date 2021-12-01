@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import json
 import time
 
+import solver
+
 t_start = 0 # ms
 t_end = 1000 # ms
 dt = 0.015 # ms
@@ -113,25 +115,6 @@ def make_other():
         "I_stim": None,
         "X_i": None
     }
-
-
-def spatial_term(V):
-    if not spatial_influence:
-        return 0
-
-    RN = np.roll(V, (0,-1), (0,1)) # right neighbor
-    LN = np.roll(V, (0,+1), (0,1)) # left neighbor
-    TN = np.roll(V, (-1,0), (0,1)) # top neighbor
-    BN = np.roll(V, (+1,0), (0,1)) # bottom neighbor
-
-    spatial = (RN - V + LN - V) / (2 * SV * cell_size ** (2) * tissue_resistivity) 
-    spatial += (TN - V + BN - V) / (2 * SV * cell_size ** (2) * tissue_resistivity)
-    # TODO missing the t + dt step <- how to get this? : (((( 
-
-    if np.max(np.abs(spatial)) > 0.1:
-        _temp = 1
-
-    return spatial
  
 def gates(s, dState):
     for gate in gate_list:
@@ -208,12 +191,18 @@ def dStatedt(s, t):
 
     # Gather data for V_m
     I_ions = ions(s, dState, o)
-    I_inj = I_stim(t)
-    o["I_stim"] = I_inj
-    geometry = spatial_term(s["V"])
+    o["I_stim"] = I_stim(t)
 
-    # State variable update - V_m
-    dState["V"] = (-1 / Cm) * (I_ions - I_inj - geometry)
+    # Sovle with ADI method
+    dState["V"] = solver.solve(
+        V=s["V"],
+        I_ions=I_ions,
+        I_stim=o["I_stim"],
+        Sv=SV,
+        C=Cm,
+        dt=dt,
+        dx=cell_size
+    )
 
     return dState, o
     
@@ -252,6 +241,11 @@ def solve(trajectory=False, videoOut=False):
         newState = make_state()
 
         for key, stateVar in dState.items():
+            if key == "V":
+                # From implicit solver
+                newState[key] = stateVar
+                continue
+
             newState[key] = state[key] + stateVar * dt
 
         if trajectory:
