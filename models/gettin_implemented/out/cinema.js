@@ -31,7 +31,7 @@ var options = {
 gui.add(options, "reset");
 gui.add(options, "pause");
 gui.add(options, "step");
-gui.add(options, "speed").min(0).max(5).step(0.05);
+gui.add(options, "speed").min(0).max(2).step(0.01);
 
 function rescale() {
     let x, y;

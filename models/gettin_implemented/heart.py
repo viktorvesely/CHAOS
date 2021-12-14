@@ -1,40 +1,42 @@
-import cell
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import json
 import time
+import cProfile
+import pstats
 
+import cell
 import solver
+import resistivity
 
 t_start = 0 # ms
-t_end = 1000 # ms
+t_end = 800 # ms
 dt = 0.015 # ms
 t_duration = t_end - t_start
 
-stim_start = 20 # ms
-stim_end = 50 # ms
-stim_amplitude = 3 # uA
+stim_start = 5 # ms
+stim_end = 10 # ms
+stim_amplitude = 300 # uA
 
 videoOut = True
 every_nth_frame = 80
 c_min = -82 # mv
 c_max = 40 # mV
 
-spatial_influence = True
-
 debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 resting_potential = -81.1014 # mV
-gridx = 20
-gridy = 20
+gridx = 50
+gridy = 50
 midx = gridx // 2
 midy = gridy // 2
-tissue_resistivity = 80
-cell_size = 200 * 10 ** (-4) # cm
-surface = gridx * gridy * cell_size ** 2  # cm^2
-thickness = 0.08 # cm, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5841556/
+rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy))
+dx = 200 * 10 ** (-4) # cm
+dy = dx
+surface = gridx * gridy * dx * dy # cm^2
+thickness = 0.08 # cm, https://www.ncbi .nlm.nih.gov/pmc/articles/PMC5841556/
 SV = 0.24 * 10 ** (4) # surface to volume ratio 
 Cm = 1
 
@@ -42,7 +44,7 @@ Cm = 1
 def I_stim(t):
     stim = stim_amplitude if (t >= stim_start) and (t <= stim_end) else 0
     I = np.zeros((gridx, gridy))
-    I[midx, midy] = stim
+    I[0, 0] = stim
     return I
 
 #---------state_variables-------------
@@ -200,8 +202,11 @@ def dStatedt(s, t):
         I_stim=o["I_stim"],
         Sv=SV,
         C=Cm,
+        rhoDx=rhoDx,
+        rhoDy=rhoDy,
         dt=dt,
-        dx=cell_size
+        dx=dx,
+        dy=dy
     )
 
     return dState, o
@@ -304,10 +309,15 @@ def solve(trajectory=False, videoOut=False):
     
     return states if trajectory else None
 perf_start = time.perf_counter()
+#with cProfile.Profile() as pr:
 solve(videoOut=videoOut)
 perf_end = time.perf_counter()
+
+#stats = pstats.Stats(pr)
+#stats.sort_stats(pstats.SortKey.TIME)
+#stats.print_stats()
 print(f"Solve time: {perf_end - perf_start} seconds. Press [Enter] to close")
-input("")
+#input("")
 
 
 
