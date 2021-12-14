@@ -1,9 +1,6 @@
 import numpy as np
 import _tdma
 
-lambda_x = None
-lambda_y = None
-
 # From https://github.com/cpcloud/PyTDMA
 def tdma(A, b):
     """Tridiagonal matrix solver.
@@ -31,21 +28,7 @@ def tridiagonal(a, b, c=None):
     return np.diag(b) + np.diag(a, -1) + np.diag(c, 1)
 
 
-def initialize_constants(
-    Sv = None,
-    C = None,
-    dt = None,
-    dx = None,
-    dy = None
-):
-    global lambda_x, lambda_y
-
-    lambda_x = dt / (2 * Sv * dx ** (2) * C)
-    lambda_y = dt / (2 * Sv * dy ** (2) * C)
-
     
-    
-
 def solve(
     V = None,
     I_ions = None,
@@ -61,15 +44,8 @@ def solve(
     periodicY = True
 ):
 
-    if lambda_x is None:
-        initialize_constants(
-            Sv = Sv,
-            C = C,
-            dt = dt,
-            dx = dx,
-            dy = dy
-        )
-        
+    lambda_x = dt / (2 * Sv * dx ** (2) * C)
+    lambda_y = dt / (2 * Sv * dy ** (2) * C)
 
     shape = V.shape
     I = I_ions - I_stim
@@ -81,7 +57,7 @@ def solve(
     BN = np.roll(V, (-1,0), (0,1)) # bottom neighbor
     rhoDxRN = np.roll(rhoDx, (-1, 0))
     rhoDyBN = np.roll(rhoDy, (-1,0), (0,1))
-    Dy = M + TN * (-lambda_y / rhoDy) + V * (lambda_y - 1 + (1 / rhoDy + 1 / rhoDyBN)) + BN * (-lambda_y / rhoDyBN)
+    Dy = M + TN * (-lambda_y / rhoDy) + V * (-1  + lambda_y * (1 / rhoDy + 1 / rhoDyBN)) + BN * (-lambda_y / rhoDyBN)
     V_half = np.zeros(shape)
 
     rows = shape[1]
@@ -90,7 +66,7 @@ def solve(
         a = lambda_x / a_rho
         c_rho = rhoDxRN[rowI,:]
         c = lambda_x / c_rho
-        b = -(1 + a + c)
+        b = -1 - a - c
         matrix = tridiagonal(a[1:], b, c[:-1])
         
         
@@ -115,7 +91,7 @@ def solve(
     RN = np.roll(V_half, (0,-1), (0,1)) # right neighbor
     LN = np.roll(V_half, (0,+1), (0,1)) # left neighbor
   
-    Dx = M + LN * (-lambda_x / rhoDx) + V_half * (lambda_x - 1 + (1 / rhoDx + 1 / rhoDxRN)) + RN * (-lambda_x / rhoDxRN)
+    Dx = M + LN * (-lambda_x / rhoDx) + V_half * ( - 1 + lambda_x * (1 / rhoDx + 1 / rhoDxRN)) + RN * (-lambda_x / rhoDxRN)
     V_new = np.zeros(shape)
 
     cols = shape[0]
@@ -124,7 +100,7 @@ def solve(
         a = lambda_y / a_rho
         c_rho = rhoDyBN[:,colI]
         c = lambda_y / c_rho
-        b = -(1 + a + c)
+        b = -1 - a - c
         matrix = tridiagonal(a[1:], b, c[:-1])
         
         
@@ -139,11 +115,51 @@ def solve(
             v[rows - 1] = - a[0] / b[0]
             y = tdma(matrix, Dx[:,colI])
             z = tdma(matrix, u)
-            V_half[:,colI] = y - ((v * y) / (1 + v * z)) * z
+            V_new[:,colI] = y - ((v * y) / (1 + v * z)) * z
         else:
             V_new[:,colI] = tdma(matrix, Dx[rowI,:])
 
     return V_new
+
+def euler_solve(
+    V = None,
+    I_ions = None,
+    I_stim = None,
+    Sv = None,
+    C = None,
+    rhoDx = None,
+    rhoDy = None,
+    dt = None,
+    dx = None,
+    dy = None,
+    periodicX = True,
+    periodicY = True
+):
+
+    I = I_ions - I_stim
+    height, width = V.shape
+
+    TN = np.roll(V, (+1,0), (0,1)) # top neighbor
+    BN = np.roll(V, (-1,0), (0,1)) # bottom neighbor
+    RN = np.roll(V, (0,-1), (0,1)) # right neighbor
+    LN = np.roll(V, (0,+1), (0,1)) # left neighbor
+
+    if not periodicX:
+        RN[:,width - 1] = V[:,width -1]
+        LN[:,0] = V[:,0]
+    
+    if not periodicY:
+        BN[height -1,:] = V[height -1,:]
+        TN[0,:] = V[0,:]
+
+    rhoDxRN = np.roll(rhoDx, (-1, 0))
+    rhoDyBN = np.roll(rhoDy, (-1,0), (0,1))
+
+    dVDx = ((LN - V) / rhoDx + (RN - V) / rhoDxRN) / (dx * dx * Sv)
+    dVDy = ((TN - V) / rhoDy + (BN - V) / rhoDyBN) / (dy * dy * Sv)
+    
+    return (dVDx + dVDy - I) * (dt / C) + V
+
 
 # def solve(
 #     V = None,

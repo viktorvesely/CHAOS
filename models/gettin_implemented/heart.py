@@ -11,13 +11,15 @@ import solver
 import resistivity
 
 t_start = 0 # ms
-t_end = 800 # ms
+t_end = 500 # ms
 dt = 0.015 # ms
 t_duration = t_end - t_start
 
-stim_start = 5 # ms
-stim_end = 10 # ms
-stim_amplitude = 300 # uA
+stim_start = 1 # ms
+stim_end = 2 # ms
+stim_amplitude = 30 # uA
+
+euler = True
 
 videoOut = True
 every_nth_frame = 80
@@ -28,11 +30,11 @@ debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 resting_potential = -81.1014 # mV
-gridx = 50
-gridy = 50
+gridx = 10
+gridy = 10
 midx = gridx // 2
 midy = gridy // 2
-rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy))
+rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy), (80, 1000))
 dx = 200 * 10 ** (-4) # cm
 dy = dx
 surface = gridx * gridy * dx * dy # cm^2
@@ -195,26 +197,42 @@ def dStatedt(s, t):
     I_ions = ions(s, dState, o)
     o["I_stim"] = I_stim(t)
 
-    # Sovle with ADI method
-    dState["V"] = solver.solve(
-        V=s["V"],
-        I_ions=I_ions,
-        I_stim=o["I_stim"],
-        Sv=SV,
-        C=Cm,
-        rhoDx=rhoDx,
-        rhoDy=rhoDy,
-        dt=dt,
-        dx=dx,
-        dy=dy
-    )
+    if euler:
+        dState["V"] = solver.euler_solve(
+            V=s["V"],
+            I_ions=I_ions,
+            I_stim=o["I_stim"],
+            Sv=SV,
+            C=Cm,
+            rhoDx=rhoDx,
+            rhoDy=rhoDy,
+            dt=dt,
+            dx=dx,
+            dy=dy
+        )
+    else:
+        # Solve with ADI method
+        dState["V"] = solver.solve(
+            V=s["V"],
+            I_ions=I_ions,
+            I_stim=o["I_stim"],
+            Sv=SV,
+            C=Cm,
+            rhoDx=rhoDx,
+            rhoDy=rhoDy,
+            dt=dt,
+            dx=dx,
+            dy=dy
+        )
+
+
 
     return dState, o
     
 
 def fill_track(track, s, o):
     for var in track_vars:
-        value = s[var][midx, midy] if var in s else o[var][midx, midy]
+        value = s[var][0, 0] if var in s else o[var][0, 0]
         track[var].append(value)
 
 def solve(trajectory=False, videoOut=False):
@@ -316,8 +334,10 @@ perf_end = time.perf_counter()
 #stats = pstats.Stats(pr)
 #stats.sort_stats(pstats.SortKey.TIME)
 #stats.print_stats()
-print(f"Solve time: {perf_end - perf_start} seconds. Press [Enter] to close")
-#input("")
+print(f"Solve time: {perf_end - perf_start} seconds.")
+
+if debug_graphs:
+    input("Press [Enter] to close")
 
 
 
