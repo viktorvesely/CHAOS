@@ -11,13 +11,13 @@ import solver
 import resistivity
 
 t_start = 0 # ms
-t_end = 500 # ms
+t_end = 400 # ms
 dt = 0.015 # ms
 t_duration = t_end - t_start
 
 stim_start = 1 # ms
-stim_end = 2 # ms
-stim_amplitude = 30 # uA
+stim_end = 50 # ms
+stim_amplitude = 40 # uA
 
 euler = True
 
@@ -30,11 +30,11 @@ debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 resting_potential = -81.1014 # mV
-gridx = 10
-gridy = 10
+gridx = 150
+gridy = 150
 midx = gridx // 2
 midy = gridy // 2
-rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy), (80, 1000))
+rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy), (8, 8))
 dx = 200 * 10 ** (-4) # cm
 dy = dx
 surface = gridx * gridy * dx * dy # cm^2
