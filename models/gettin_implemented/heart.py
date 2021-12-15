@@ -11,30 +11,34 @@ import solver
 import resistivity
 
 t_start = 0 # ms
-t_end = 400 # ms
+t_end = 1000 # ms
 dt = 0.015 # ms
-t_duration = t_end - t_start
+t_duration = t_end  - t_start
 
 stim_start = 1 # ms
 stim_end = 50 # ms
 stim_amplitude = 40 # uA
 
+BPS = 2.5
+
 euler = True
+periodicX = False
+periodicY = False
 
 videoOut = True
-every_nth_frame = 80
+every_nth_frame = 200
 c_min = -82 # mv
 c_max = 40 # mV
 
-debug_graphs = False
+debug_graphs = False 
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 resting_potential = -81.1014 # mV
-gridx = 150
-gridy = 150
+gridx = 10
+gridy = 10
 midx = gridx // 2
 midy = gridy // 2
-rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy), (8, 8))
+rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy), (8, 20))
 dx = 200 * 10 ** (-4) # cm
 dy = dx
 surface = gridx * gridy * dx * dy # cm^2
@@ -44,7 +48,8 @@ Cm = 1
 
 
 def I_stim(t):
-    stim = stim_amplitude if (t >= stim_start) and (t <= stim_end) else 0
+    T = t % (1000 / BPS)
+    stim = stim_amplitude if (T >= stim_start) and (T <= stim_end) else 0
     I = np.zeros((gridx, gridy))
     I[0, 0] = stim
     return I
@@ -208,7 +213,9 @@ def dStatedt(s, t):
             rhoDy=rhoDy,
             dt=dt,
             dx=dx,
-            dy=dy
+            dy=dy,
+            periodicX=periodicX,
+            periodicY=periodicY
         )
     else:
         # Solve with ADI method
@@ -222,7 +229,9 @@ def dStatedt(s, t):
             rhoDy=rhoDy,
             dt=dt,
             dx=dx,
-            dy=dy
+            dy=dy,
+            periodicX=periodicX,
+            periodicY=periodicY
         )
 
 
