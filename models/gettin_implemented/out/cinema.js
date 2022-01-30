@@ -7,7 +7,6 @@ var frameId = null;
 var gridy = data[0].length;
 var gridx = data[0][0].length;
 
-
 var width = null;
 var height = null;
 var tileW = null;
@@ -44,8 +43,9 @@ function rescale() {
     width = x;
     height = y;
 
-    tileW = x / gridx;
-    tileH = y / gridy;
+    dim = Math.max(x / gridx, y / gridy)
+    tileW = dim;
+    tileH = dim;
 }
 
 function time() {

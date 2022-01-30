@@ -11,7 +11,7 @@ import solver
 import resistivity
 
 t_start = 0 # ms
-t_end = 1000 # ms
+t_end = 8000 # ms
 dt = 0.015 # ms
 t_duration = t_end  - t_start
 
@@ -19,7 +19,7 @@ stim_start = 1 # ms
 stim_end = 50 # ms
 stim_amplitude = 40 # uA
 
-BPS = 2.5
+BPS = 2.2
 
 euler = True
 periodicX = False
@@ -34,8 +34,8 @@ debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 resting_potential = -81.1014 # mV
-gridx = 10
-gridy = 10
+gridx = 40
+gridy = 40
 midx = gridx // 2
 midy = gridy // 2
 rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy), (8, 20))
@@ -73,39 +73,39 @@ s0 = make_state()
 
 RP = np.ones((gridx, gridy)) * resting_potential
 
-s0["V"] = np.ones((gridx, gridy), dtype=np.double) * resting_potential
+s0["V"] = np.ones((gridx, gridy), dtype=np.float) * resting_potential
 
-s0["m"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
+s0["m"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
     cell.alpha_m(RP),
     cell.beta_m(RP)
 )
 
-s0["j"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
+s0["j"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
     cell.alpha_j(RP),
     cell.beta_j(RP)
 )
 
-s0["h"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
+s0["h"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
     cell.alpha_h(RP),
     cell.beta_h(RP)
 )
 
-s0["d"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
+s0["d"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
     cell.alpha_d(RP),
     cell.beta_d(RP)
 )
 
-s0["f"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
+s0["f"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
     cell.alpha_f(RP),
     cell.beta_f(RP)
 )
 
-s0["X"] = np.ones((gridx, gridy), dtype=np.double) * cell.steady_state(
+s0["X"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
     cell.alpha_X(RP),
     cell.beta_X(RP)
 )
 
-s0["Ca_i"] = np.ones((gridx, gridy), dtype=np.double) * cell.Ca_i_initial
+s0["Ca_i"] = np.ones((gridx, gridy), dtype=np.float) * cell.Ca_i_initial
 
 
 gate_list = ["m", "h", "j", "d", "f", "X"]

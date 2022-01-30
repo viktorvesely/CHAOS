@@ -93,7 +93,7 @@ def E_si(Ca_i):
 
 def alpha_j(V):
     cond = V >= -40
-    vals = np.zeros(V.shape, dtype=np.double)
+    vals = np.zeros(V.shape, dtype=np.float)
     temp1 = -127140 * np.exp(0.2444 * V) - 3.474 * (10 ** (-5)) * np.exp(-0.04391 * V)
     temp2 = (V + 37.78) / (1 + np.exp(0.311 * (V + 79.23)))
     np.putmask(vals, ~cond, temp1 * temp2)
@@ -101,20 +101,20 @@ def alpha_j(V):
 
 def alpha_h(V):
     cond = V >= -40
-    vals = np.zeros(V.shape, dtype=np.double)
+    vals = np.zeros(V.shape, dtype=np.float)
     np.putmask(vals, ~cond, 0.135 * np.exp((80 + V) / -6.8))
     return vals * alpha_beta_conversion
 
 def beta_h(V):
     cond = V >= -40
-    vals = np.zeros(V.shape, dtype=np.double)
+    vals = np.zeros(V.shape, dtype=np.float)
     np.putmask(vals, cond, 1 / (0.13 * (1 + np.exp((V + 10.66) / (-11.1)))))
     np.putmask(vals, ~cond, 3.56 * np.exp(0.079 * V) + 3.1 * 10 ** (5) * np.exp(0.35 * V))
     return vals * alpha_beta_conversion
         
 def beta_j(V):
     cond = V >= -40
-    vals = np.zeros(V.shape, dtype=np.double)
+    vals = np.zeros(V.shape, dtype=np.float)
     np.putmask(vals, cond, 0.3 * np.exp(-2.535 * 10 ** (-7) * V) / (1 + np.exp(-0.1 * (V + 32))))
     np.putmask(vals, ~cond, 0.1212 * np.exp(-0.01052 * V) / (1 + np.exp(-0.1378 * (V + 40.14))))
     return vals * alpha_beta_conversion
@@ -145,7 +145,7 @@ def beta_f(V):
 
 def X_i(V):
     cond = V > -100
-    vals = np.ones(V.shape, dtype=np.double)
+    vals = np.ones(V.shape, dtype=np.float)
     np.putmask(vals, cond, 2.837 * (np.exp(0.04 * (V + 77)) - 1) / ((V + 77) * np.exp(0.04 * (V + 35))))
     return vals
 
