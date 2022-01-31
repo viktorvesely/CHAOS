@@ -1,0 +1,15 @@
+import json
+
+class Params:
+    def __init__(self, path):
+        self.__path = path
+        self.__params = None
+        with open(path, 'r', encoding='utf-8') as f:
+            self.__params = json.load(f)
+
+    
+    def get(self, name):
+        if name not in self.__params:
+            raise ValueError(f"Parameter with name {name} is not defined in {self.__path}")
+
+        return self.__params[name]

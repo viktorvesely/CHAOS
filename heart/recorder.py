@@ -1,0 +1,152 @@
+import numpy as np
+import os
+import shutil
+
+from settings import Params
+from heart import solve
+
+class Recorder:
+
+    MAX_BUFFEE_SIZE = 100_000
+
+    def __init__(self, name, n, lineArgs=None):
+        self.name = name
+        self.number = n
+        self.lineArgs = lineArgs
+        self.pars = Params("./params.json")
+        
+        self.period = 1000 / self.pars.get("sampling_frequency")
+        self.next_sample = 0
+        self.grid = (self.pars.get("gridx"), self.pars.get("gridy"))
+        
+        self.detectors = tuple(self.pars.get("detectors"))
+        self.injectors = tuple(self.pars.get("injectors"))
+
+        self.states = []
+        self.actions = []
+
+        self.save_n_batch = 0
+        
+        self.path = None
+        self.create_heart()
+
+    def print(self, arg):
+        if self.lineArgs.verbal:
+            print(arg)
+
+
+    def create_heart(self):
+
+        name = self.name
+
+        if os.path.isdir(f'./hearts/{name}'):
+            name = f"{name}-1"    
+
+        suffix = 2
+        while os.path.isdir(f'./hearts/{name}'):
+            name = name[:-2]
+            name = f"{name}-{suffix}"
+            suffix += 1 
+
+        path = os.path.join(os.getcwd(), 'hearts', name)
+        os.mkdir(path)
+        
+        # Copy settings
+        shutil.copyfile(
+            os.path.join(os.getcwd(), 'params.json'),
+            os.path.join(path, 'params.json')
+        )
+
+        mask_path = self.pars.get("resistivity_path")
+        mask_name = mask_path.split('/')[-1]
+
+        # Copy resistivity mask
+        shutil.copyfile(
+            mask_path,
+            os.path.join(path, mask_name)
+        )
+
+        os.mkdir(os.path.join(path, 'data'))
+
+        self.name = name
+        self.path = path
+
+
+    def get_state(self, V):
+        return V[self.detectors]
+
+    def save(self):
+        np.save(
+            os.path.join(self.path, 'data', f'states_{self.number}_{self.save_n_batch}.npy'),
+            np.array(self.states)
+        )
+
+        np.save(
+            os.path.join(self.path, 'data', f'actions_{self.number}_{self.save_n_batch}.npy'),
+            np.array(self.actions)
+        )
+
+        self.save_n_batch += 1
+
+    def onTick(self, V, t):
+
+        if t >= self.next_sample:
+            self.next_sample += self.period
+
+            state = self.get_state(V)
+            action = self.get_action(state, t)
+            print(action)
+            self.states.append(state)
+            self.actions.append(action)
+
+            if len(self.states) >= Recorder.MAX_BUFFEE_SIZE:
+                self.save()
+
+            return self.map_action_to_heart(action) 
+
+        return 0
+
+    def map_action_to_heart(self, action):
+        stimuli_map = np.zeros(self.grid)
+        stimuli_map[self.injectors] = action
+        return stimuli_map
+
+    def get_action(self, state, t):
+        return np.zeros(len(self.injectors))
+
+    def record(self):
+
+        solve(
+            self.pars,
+            videoOut=self.lineArgs.record,
+            verbal=self.lineArgs.verbal,
+            onTick=self.onTick
+        )
+
+        if len(self.states) > 0:
+            self.save()
+
+
+if __name__ == '__main__':
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-s', '--name', type=str, required=True)
+    parser.add_argument('-v', '--verbal', action="store_true", default=False)
+    parser.add_argument('-c', '--cores', type=int, default=1)
+    parser.add_argument('-r', '--record', action="store_true", default=False)
+
+    args = parser.parse_args()
+
+    if args.record and args.cores > 1:
+        raise ValueError(f"It would be unsafe to record the heart with multiprocessing ; ). Change the number of cores from {args.cores} to 0")
+
+    recorder = Recorder(
+        args.name,
+        0,
+        lineArgs=args
+    )
+
+    recorder.record()

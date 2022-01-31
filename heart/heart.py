@@ -9,52 +9,42 @@ import pstats
 import cell
 import solver
 import resistivity
+ 
 
-t_start = 0 # ms
-t_end = 8000 # ms
-dt = 0.015 # ms
-t_duration = t_end  - t_start
+#----------SHARED CONSTANTS ACROSS RUNS------------
 
-stim_start = 1 # ms
-stim_end = 50 # ms
-stim_amplitude = 40 # uA
-
-BPS = 2.2
-
+# What solver should the program use
 euler = True
 periodicX = False
 periodicY = False
 
-videoOut = True
+# Video params
 every_nth_frame = 200
 c_min = -82 # mv
 c_max = 40 # mV
 
+# Debugging
 debug_graphs = False 
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
+# Physic constants
 resting_potential = -81.1014 # mV
-gridx = 40
-gridy = 40
-midx = gridx // 2
-midy = gridy // 2
-rhoDx, rhoDy = resistivity.get_resistivity_masks((gridx, gridy), (8, 20))
+dt = 0.015 # ms
 dx = 200 * 10 ** (-4) # cm
 dy = dx
-surface = gridx * gridy * dx * dy # cm^2
 thickness = 0.08 # cm, https://www.ncbi .nlm.nih.gov/pmc/articles/PMC5841556/
 SV = 0.24 * 10 ** (4) # surface to volume ratio 
 Cm = 1
 
+gate_list = ["m", "h", "j", "d", "f", "X"]
+ 
+#--------------Solving functions----------------
 
-def I_stim(t):
+def heartbeat(t, I, BPS, stim_start, stim_end, stim_amplitude):
     T = t % (1000 / BPS)
     stim = stim_amplitude if (T >= stim_start) and (T <= stim_end) else 0
-    I = np.zeros((gridx, gridy))
     I[0, 0] = stim
-    return I
 
-#---------state_variables-------------
 
 def make_state():
     return {
@@ -67,51 +57,6 @@ def make_state():
         "X": None,
         "Ca_i": None
     }
-
-
-s0 = make_state()
-
-RP = np.ones((gridx, gridy)) * resting_potential
-
-s0["V"] = np.ones((gridx, gridy), dtype=np.float) * resting_potential
-
-s0["m"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
-    cell.alpha_m(RP),
-    cell.beta_m(RP)
-)
-
-s0["j"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
-    cell.alpha_j(RP),
-    cell.beta_j(RP)
-)
-
-s0["h"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
-    cell.alpha_h(RP),
-    cell.beta_h(RP)
-)
-
-s0["d"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
-    cell.alpha_d(RP),
-    cell.beta_d(RP)
-)
-
-s0["f"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
-    cell.alpha_f(RP),
-    cell.beta_f(RP)
-)
-
-s0["X"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
-    cell.alpha_X(RP),
-    cell.beta_X(RP)
-)
-
-s0["Ca_i"] = np.ones((gridx, gridy), dtype=np.float) * cell.Ca_i_initial
-
-
-gate_list = ["m", "h", "j", "d", "f", "X"]
-
-
-#----------------Other variables------------------------
 
 def make_other():
     return {
@@ -191,7 +136,19 @@ def ions(s, dState, o):
     return o["I_Na"] + o["I_K"] + o["I_K1"] + o["I_Kp"] + o["I_b"]  + o["I_si"]
 
 
-def dStatedt(s, t):
+def dStatedt(
+    s,
+    t,
+    rhoDx,
+    rhoDy,
+    gridx,
+    gridy,
+    BPS,
+    stim_start,
+    stim_end,
+    stim_amplitude,
+    action=0
+    ):
     dState = make_state()
     o = make_other()
 
@@ -200,7 +157,9 @@ def dStatedt(s, t):
 
     # Gather data for V_m
     I_ions = ions(s, dState, o)
-    o["I_stim"] = I_stim(t)
+    I_stim = np.zeros((gridx, gridy))
+    heartbeat(t, I_stim, BPS, stim_start, stim_end, stim_amplitude)
+    o["I_stim"] = I_stim + action
 
     if euler:
         dState["V"] = solver.euler_solve(
@@ -244,8 +203,73 @@ def fill_track(track, s, o):
         value = s[var][0, 0] if var in s else o[var][0, 0]
         track[var].append(value)
 
-def solve(trajectory=False, videoOut=False):
-    states = [s0]
+def solve(params, videoOut=False, verbal=False, onTick=None):
+
+    
+    t_start = params.get("t_start")
+    t_end = params.get("t_end")
+    t_duration = t_end - t_start
+
+    BPS = params.get("BPS")
+    rythm = (1000 / BPS)
+    stim_start = params.get("stim_start")
+    stim_end = params.get("stim_end")
+    stim_amplitude = params.get("stim_amplitude")    
+
+    if (stim_start > stim_end or
+        stim_end > rythm or
+        stim_start < 0):
+        raise ValueError(f"Incorrect parameters. Change BPS: {BPS}, stim_start: {stim_start}, or stim_end: {stim_end} so it makes sense")
+
+    gridx = params.get("gridx")
+    gridy = params.get("gridy")
+
+    rhoDx, rhoDy = resistivity.get_resistivity_masks(
+        (gridx, gridy),
+        (params.get("min_resistivity"), params.get("max_resistivity")), 
+        params.get("resistivity_path")
+    )
+
+    # ----------Initialize state 0------------------
+    s0 = make_state()
+
+    RP = np.ones((gridx, gridy)) * resting_potential
+
+    s0["V"] = np.ones((gridx, gridy), dtype=np.float) * resting_potential
+
+    s0["m"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+        cell.alpha_m(RP),
+        cell.beta_m(RP)
+    )
+
+    s0["j"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+        cell.alpha_j(RP),
+        cell.beta_j(RP)
+    )
+
+    s0["h"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+        cell.alpha_h(RP),
+        cell.beta_h(RP)
+    )
+
+    s0["d"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+        cell.alpha_d(RP),
+        cell.beta_d(RP)
+    )
+
+    s0["f"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+        cell.alpha_f(RP),
+        cell.beta_f(RP)
+    )
+
+    s0["X"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+        cell.alpha_X(RP),
+        cell.beta_X(RP)
+    )
+
+    s0["Ca_i"] = np.ones((gridx, gridy), dtype=np.float) * cell.Ca_i_initial
+
+    # ----------SIM_START---------------
     state = s0
     ts = np.arange(t_start, t_end, dt)
 
@@ -262,14 +286,33 @@ def solve(trajectory=False, videoOut=False):
     next_step = (t_duration * 0.05) / 1000
 
     next_frame = 0
+    
+    on_tick_listener = onTick is not None
 
     for i, t in enumerate(ts):
 
-        if time.time() >= next_time:
+        if verbal and time.time() >= next_time:
             sys.stdout.write('t=%s\r' % str(t))
             next_time = time.time() + next_step 
 
-        dState, other = dStatedt(state, t)
+        action = 0
+        if on_tick_listener:
+            action = onTick(state["V"], t)
+
+        dState, other = dStatedt(
+            state,
+            t,
+            rhoDx,
+            rhoDy,
+            gridx,
+            gridy,
+            BPS,
+            stim_start,
+            stim_end,
+            stim_amplitude,
+            action=action
+        )
+        
         newState = make_state()
 
         for key, stateVar in dState.items():
@@ -279,9 +322,6 @@ def solve(trajectory=False, videoOut=False):
                 continue
 
             newState[key] = state[key] + stateVar * dt
-
-        if trajectory:
-            states.append(newState)
         
         if debug_graphs:
             fill_track(track, state, other)  
@@ -298,10 +338,11 @@ def solve(trajectory=False, videoOut=False):
 
         state = newState
     
-    print("\n")
+    if verbal:
+        print("\n")
 
     if videoOut:
-        with open("./out/video.js", 'w') as fi:
+        with open("./roentgen/video.js", 'w') as fi:
             jString = "var data = {}; var dt = {};".format(json.dumps(grids), (dt * every_nth_frame))
             fi.write(jString)
 
@@ -333,20 +374,21 @@ def solve(trajectory=False, videoOut=False):
         axs[1 , 1].legend()
 
         plt.show(block=False)
-    
-    return states if trajectory else None
-perf_start = time.perf_counter()
+
+
+
+#perf_start = time.perf_counter()
 #with cProfile.Profile() as pr:
-solve(videoOut=videoOut)
-perf_end = time.perf_counter()
+#solve(videoOut=videoOut)
+#perf_end = time.perf_counter()
 
 #stats = pstats.Stats(pr)
 #stats.sort_stats(pstats.SortKey.TIME)
 #stats.print_stats()
-print(f"Solve time: {perf_end - perf_start} seconds.")
+#print(f"Solve time: {perf_end - perf_start} seconds.")
 
-if debug_graphs:
-    input("Press [Enter] to close")
+# if debug_graphs:
+#     input("Press [Enter] to close")
 
 
 

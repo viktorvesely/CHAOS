@@ -1,1 +1,3 @@
 video.js
+*.npy
+__pycache__\
