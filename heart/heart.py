@@ -157,7 +157,7 @@ def dStatedt(
 
     # Gather data for V_m
     I_ions = ions(s, dState, o)
-    I_stim = np.zeros((gridx, gridy))
+    I_stim = np.zeros((gridy, gridx))
     heartbeat(t, I_stim, BPS, stim_start, stim_end, stim_amplitude)
     o["I_stim"] = I_stim + action
 
@@ -225,7 +225,7 @@ def solve(params, videoOut=False, verbal=False, onTick=None):
     gridy = params.get("gridy")
 
     rhoDx, rhoDy = resistivity.get_resistivity_masks(
-        (gridx, gridy),
+        (gridy, gridx),
         (params.get("min_resistivity"), params.get("max_resistivity")), 
         params.get("resistivity_path")
     )
@@ -233,41 +233,41 @@ def solve(params, videoOut=False, verbal=False, onTick=None):
     # ----------Initialize state 0------------------
     s0 = make_state()
 
-    RP = np.ones((gridx, gridy)) * resting_potential
+    RP = np.ones((gridy, gridx)) * resting_potential
 
-    s0["V"] = np.ones((gridx, gridy), dtype=np.float) * resting_potential
+    s0["V"] = np.ones((gridy, gridx), dtype=np.float) * resting_potential
 
-    s0["m"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+    s0["m"] = np.ones((gridy, gridx), dtype=np.float) * cell.steady_state(
         cell.alpha_m(RP),
         cell.beta_m(RP)
     )
 
-    s0["j"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+    s0["j"] = np.ones((gridy, gridx), dtype=np.float) * cell.steady_state(
         cell.alpha_j(RP),
         cell.beta_j(RP)
     )
 
-    s0["h"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+    s0["h"] = np.ones((gridy, gridx), dtype=np.float) * cell.steady_state(
         cell.alpha_h(RP),
         cell.beta_h(RP)
     )
 
-    s0["d"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+    s0["d"] = np.ones((gridy, gridx), dtype=np.float) * cell.steady_state(
         cell.alpha_d(RP),
         cell.beta_d(RP)
     )
 
-    s0["f"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+    s0["f"] = np.ones((gridy, gridx), dtype=np.float) * cell.steady_state(
         cell.alpha_f(RP),
         cell.beta_f(RP)
     )
 
-    s0["X"] = np.ones((gridx, gridy), dtype=np.float) * cell.steady_state(
+    s0["X"] = np.ones((gridy, gridx), dtype=np.float) * cell.steady_state(
         cell.alpha_X(RP),
         cell.beta_X(RP)
     )
 
-    s0["Ca_i"] = np.ones((gridx, gridy), dtype=np.float) * cell.Ca_i_initial
+    s0["Ca_i"] = np.ones((gridy, gridx), dtype=np.float) * cell.Ca_i_initial
 
     # ----------SIM_START---------------
     state = s0

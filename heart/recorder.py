@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import shutil
+import time
 
 from settings import Params
 from heart import solve
@@ -17,7 +18,7 @@ class Recorder:
         
         self.period = 1000 / self.pars.get("sampling_frequency")
         self.next_sample = 0
-        self.grid = (self.pars.get("gridx"), self.pars.get("gridy"))
+        self.grid = (self.pars.get("gridy"), self.pars.get("gridx"))
         
         self.detectors = tuple(self.pars.get("detectors"))
         self.injectors = tuple(self.pars.get("injectors"))
@@ -86,6 +87,9 @@ class Recorder:
             np.array(self.actions)
         )
 
+        self.states = []
+        self.actions = []
+
         self.save_n_batch += 1
 
     def onTick(self, V, t):
@@ -95,7 +99,6 @@ class Recorder:
 
             state = self.get_state(V)
             action = self.get_action(state, t)
-            print(action)
             self.states.append(state)
             self.actions.append(action)
 
@@ -116,12 +119,16 @@ class Recorder:
 
     def record(self):
 
+        perf_start = time.perf_counter()
         solve(
             self.pars,
             videoOut=self.lineArgs.record,
             verbal=self.lineArgs.verbal,
             onTick=self.onTick
         )
+        perf_end = time.perf_counter()
+
+        self.print(f"Solve time: {perf_end - perf_start}")
 
         if len(self.states) > 0:
             self.save()

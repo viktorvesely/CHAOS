@@ -6,7 +6,7 @@
     "stim_end": 50,
     "stim_amplitude": 40, 
     "gridx": 10,
-    "gridy": 10,
+    "gridy": 12,
     "min_resistivity": 8,
     "max_resistivity": 20,
     "resistivity_path": "./mask.png",

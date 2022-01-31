@@ -1,22 +1,22 @@
 {
     "t_start": 0,
-    "t_end": 1000,
+    "t_end": 1800,
     "BPS": 1.2,
     "stim_start": 1,
     "stim_end": 50,
     "stim_amplitude": 40, 
-    "gridx": 10,
-    "gridy": 10,
+    "gridx": 8,
+    "gridy": 12,
     "min_resistivity": 8,
     "max_resistivity": 20,
-    "resistivity_path": "./mask.png",
+    "resistivity_path": "./resistivity_mask.png",
     "sampling_frequency": 20,
     "detectors": [
-        [0, 9],
+        [0, 7],
         [9, 0]
     ],
     "injectors": [
-        [0, 9],
+        [0, 7],
         [9, 0]
     ]
 }
