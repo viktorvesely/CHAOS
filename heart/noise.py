@@ -2,17 +2,23 @@ import numpy as np
 from math import pi
 
 class SinusNoise:
+
+    min_theta = -10_000
+    max_theta = 10_000
+
     def __init__(self, maxAction, minAction, numActions, settings):
         self.sqrt2 = np.sqrt(2)
         self.f = settings['frequency']
         self.max = maxAction
         self.min = minAction
+        self.numActions = numActions
+        self.thetas = np.random.random(size=numActions) * (SinusNoise.max_theta - SinusNoise.min_theta) + SinusNoise.min_theta
 
     def __call__(self, t):
         t = t / 1_000
         range11 = (
-            np.sin(self.f * 2 * pi * t) + 
-            np.sin(self.f * 2 * pi * t / self.sqrt2)
+            np.sin(self.f * 2 * pi * (t + self.thetas)) + 
+            np.sin(self.f * 2 * pi * (t + self.thetas) / self.sqrt2)
         ) / 2
         range01 = (range11 + 1) / 2
         return range01 * (self.max - self.min) + self.min
@@ -45,7 +51,9 @@ class RectNoise:
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
 
-    noise = RectNoise(-1, 1, 2, {"periodMuMs": 50, "periodStdMs": 10, "t_start": 3})
+    #noise = RectNoise(-1, 1, 2, {"periodMuMs": 50, "periodStdMs": 10, "t_start": 3})
+    noise = SinusNoise(-1, 1, 2, {"frequency": 4})
+    print(noise.thetas)
     t = np.arange(0, 2000, 0.2)
 
     actions = [noise(t[i]) for i in range(t.size)]

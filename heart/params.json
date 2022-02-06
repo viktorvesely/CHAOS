@@ -19,8 +19,8 @@
         [0, 9],
         [7, 0]
     ],
-    "max_action": 50,
-    "min_action": 50,
+    "max_action": 40,
+    "min_action": -40,
     "actor": "sinus",
     "noise_sinus_settings": {
         "frequency": 70

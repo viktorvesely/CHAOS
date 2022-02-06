@@ -24,6 +24,7 @@ class Recorder:
         
         self.detectors = tuple(self.pars.get("detectors"))
         self.injectors = tuple(self.pars.get("injectors"))
+        self.num_actions = len(self.injectors)
 
         self.states = []
         self.actions = []
@@ -41,9 +42,28 @@ class Recorder:
 
         if actor == "":
             return self.get_action_zeros
+
         if actor == "sinus":
-            settings 
-            self.noise = SinusNoise()
+            settings = self.pars.get("noise_sinus_settings")
+            self.noise = SinusNoise(
+                self.pars.get("max_action"),
+                self.pars.get("min_action"),
+                self.num_actions,
+                settings
+            )
+            return self.get_action_noise
+
+        if actor == "rect":
+            settings = self.pars.get("noise_rect_settings")
+            self.noise = SinusNoise(
+                self.pars.get("max_action"),
+                self.pars.get("min_action"),
+                self.num_actions,
+                settings
+            )
+            return self.get_action_noise
+
+        raise ValueError(f"Invalid actor: Got {actor} check the code for expected")
 
     def print(self, arg):
         if self.lineArgs.verbal:
@@ -127,7 +147,7 @@ class Recorder:
 
 
     def get_action_noise(self, state, t):
-        pass
+        return self.noise(t)
 
     def get_action_zeros(self, state, t):
         return np.zeros(len(self.injectors))
