@@ -5,10 +5,12 @@ import time
 
 from settings import Params
 from heart import solve
+from noise import SinusNoise, RectNoise
 
 class Recorder:
 
     MAX_BUFFEE_SIZE = 100_000
+    MINIMAL_DISTURBANCE = 1e-3;
 
     def __init__(self, name, n, lineArgs=None):
         self.name = name
@@ -31,6 +33,18 @@ class Recorder:
         self.path = None
         self.create_heart()
 
+        self.noise = None
+        self.get_action = self.resolve_action_mode()
+
+    def resolve_action_mode(self):
+        actor = self.pars.get("actor")
+
+        if actor == "":
+            return self.get_action_zeros
+        if actor == "sinus":
+            settings 
+            self.noise = SinusNoise()
+
     def print(self, arg):
         if self.lineArgs.verbal:
             print(arg)
@@ -39,14 +53,11 @@ class Recorder:
     def create_heart(self):
 
         name = self.name
-
-        if os.path.isdir(f'./hearts/{name}'):
-            name = f"{name}-1"    
-
-        suffix = 2
+        original_name = name  
+        
+        suffix = 1
         while os.path.isdir(f'./hearts/{name}'):
-            name = name[:-2]
-            name = f"{name}-{suffix}"
+            name = f"{original_name}-{suffix}"
             suffix += 1 
 
         path = os.path.join(os.getcwd(), 'hearts', name)
@@ -114,17 +125,33 @@ class Recorder:
         stimuli_map[self.injectors] = action
         return stimuli_map
 
-    def get_action(self, state, t):
+
+    def get_action_noise(self, state, t):
+        pass
+
+    def get_action_zeros(self, state, t):
         return np.zeros(len(self.injectors))
 
+    def get_disturbance(self):
+        if not self.lineArgs.disrupt:
+            return 0
+        
+        dist = np.zeros(self.grid)
+        dist[0, 1] = Recorder.MINIMAL_DISTURBANCE
+
+        return dist
+
     def record(self):
+
+        disturbance = self.get_disturbance()
 
         perf_start = time.perf_counter()
         solve(
             self.pars,
             videoOut=self.lineArgs.record,
             verbal=self.lineArgs.verbal,
-            onTick=self.onTick
+            onTick=self.onTick,
+            s0_disturbance=disturbance
         )
         perf_end = time.perf_counter()
 
@@ -144,6 +171,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbal', action="store_true", default=False)
     parser.add_argument('-c', '--cores', type=int, default=1)
     parser.add_argument('-r', '--record', action="store_true", default=False)
+    parser.add_argument('-disr', '--disrupt', action="store_true", desfault=False)
 
     args = parser.parse_args()
 

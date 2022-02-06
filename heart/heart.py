@@ -193,8 +193,6 @@ def dStatedt(
             periodicY=periodicY
         )
 
-
-
     return dState, o
     
 
@@ -203,8 +201,13 @@ def fill_track(track, s, o):
         value = s[var][0, 0] if var in s else o[var][0, 0]
         track[var].append(value)
 
-def solve(params, videoOut=False, verbal=False, onTick=None):
-
+def solve(
+    params,
+    videoOut=False,
+    verbal=False,
+    onTick=None,
+    s0_disturbance=0
+):
     
     t_start = params.get("t_start")
     t_end = params.get("t_end")
@@ -236,6 +239,7 @@ def solve(params, videoOut=False, verbal=False, onTick=None):
     RP = np.ones((gridy, gridx)) * resting_potential
 
     s0["V"] = np.ones((gridy, gridx), dtype=np.float) * resting_potential
+    s0["V"] = s0["V"] + s0_disturbance
 
     s0["m"] = np.ones((gridy, gridx), dtype=np.float) * cell.steady_state(
         cell.alpha_m(RP),

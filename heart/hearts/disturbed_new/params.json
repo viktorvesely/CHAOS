@@ -18,16 +18,5 @@
     "injectors": [
         [0, 9],
         [7, 0]
-    ],
-    "max_action": 50,
-    "min_action": 50,
-    "actor": "sinus",
-    "noise_sinus_settings": {
-        "frequency": 70
-    },
-    "noise_rect_settigns": {
-        "periodMuMs": 50,
-        "periodStdMs": 15,
-        "t_start": 3
-    }
+    ]
 }
