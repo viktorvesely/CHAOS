@@ -1,10 +1,12 @@
 import cv2
 import numpy as np
 
-def get_resistivity_masks(shape, bounds, path=None):
-    if path is None:
-        path = './resistivity_mask.png'
+def get_resistivity_masks(shape, bounds, path):
     img = cv2.imread(path)
+
+    if shape is None:
+        shape = img.shape
+
     res = cv2.resize(img, dsize=(shape[1], shape[0]), interpolation=cv2.INTER_CUBIC)
     mask = np.sum(res, axis=2)
     mask = mask / (256 * 3)
@@ -22,5 +24,8 @@ def show_mask(mask):
     cv2.imshow("hmm", img)
     cv2.waitKey(0)
 
-# mask, _  = get_resistivity_masks((15, 30), (0, 256))
-# show_mask(mask)
+
+if __name__ == "__main__":
+    mask, _  = get_resistivity_masks((18, 14), (0, 1), "./scared_mask.png")
+    print(mask)
+    # show_mask(mask)

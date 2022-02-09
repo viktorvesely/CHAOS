@@ -1,22 +1,31 @@
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
 import json
 import time
-import cProfile
-import pstats
 
 import cell
 import solver
 import resistivity
  
+# Special flag for peregrine
+
+peregrine = False
+
+if not peregrine:
+    from matplotlib import pyplot as plt
+    import cProfile
+    import pstats
+
 
 #----------SHARED CONSTANTS ACROSS RUNS------------
 
 # What solver should the program use
 euler = True
-periodicX = False
-periodicY = False
+
+# Stabilize the simulation
+clipVs = True
+maxActivation = 80 # mV
+minActivation = -120 # mV
 
 # Video params
 every_nth_frame = 200
@@ -24,13 +33,13 @@ c_min = -82 # mv
 c_max = 40 # mV
 
 # Debugging
-debug_graphs = False 
+debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
 # Physic constants
 resting_potential = -81.1014 # mV
 dt = 0.015 # ms
-dx = 200 * 10 ** (-4) # cm
+dx = 200 * 10 ** (-4) #200 * 10 ** (-4) # cm
 dy = dx
 thickness = 0.08 # cm, https://www.ncbi .nlm.nih.gov/pmc/articles/PMC5841556/
 SV = 0.24 * 10 ** (4) # surface to volume ratio 
@@ -41,7 +50,7 @@ gate_list = ["m", "h", "j", "d", "f", "X"]
 #--------------Solving functions----------------
 
 def heartbeat(t, I, BPS, stim_start, stim_end, stim_amplitude):
-    T = t % (1000 / BPS)
+    T = t # % (1000 / BPS)
     stim = stim_amplitude if (T >= stim_start) and (T <= stim_end) else 0
     I[0, 0] = stim
 
@@ -143,6 +152,8 @@ def dStatedt(
     rhoDy,
     gridx,
     gridy,
+    periodicX,
+    periodicY,
     BPS,
     stim_start,
     stim_end,
@@ -226,6 +237,9 @@ def solve(
 
     gridx = params.get("gridx")
     gridy = params.get("gridy")
+    periodicX = params.get("periodicX")
+    periodicY = params.get("periodicY")
+    minRho = params.get("min_resistivity")
 
     rhoDx, rhoDy = resistivity.get_resistivity_masks(
         (gridy, gridx),
@@ -310,6 +324,8 @@ def solve(
             rhoDy,
             gridx,
             gridy,
+            periodicX,
+            periodicY,
             BPS,
             stim_start,
             stim_end,
@@ -321,8 +337,10 @@ def solve(
 
         for key, stateVar in dState.items():
             if key == "V":
-                # From implicit solver
-                newState[key] = stateVar
+                # From solvers
+                solver.wrap_around(stateVar, 3, dx, dy, dt, SV, Cm, resting_potential)
+                Vclipped = np.clip(stateVar, minActivation, maxActivation) if clipVs else stateVar
+                newState[key] = Vclipped
                 continue
 
             newState[key] = state[key] + stateVar * dt

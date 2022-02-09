@@ -10,6 +10,18 @@
             "request": "launch",
             "program": "heart.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Record-verbal",
+            "type": "python",
+            "request": "launch",
+            "program": "recorder.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--verbal",
+                "--name",
+                "test"
+            ]
         }
     ]
 }

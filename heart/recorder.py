@@ -36,6 +36,7 @@ class Recorder:
 
         self.noise = None
         self.get_action = self.resolve_action_mode()
+        self.last_action = 0
 
     def resolve_action_mode(self):
         actor = self.pars.get("actor")
@@ -55,7 +56,7 @@ class Recorder:
 
         if actor == "rect":
             settings = self.pars.get("noise_rect_settings")
-            self.noise = SinusNoise(
+            self.noise = RectNoise(
                 self.pars.get("max_action"),
                 self.pars.get("min_action"),
                 self.num_actions,
@@ -135,10 +136,12 @@ class Recorder:
 
             if len(self.states) >= Recorder.MAX_BUFFEE_SIZE:
                 self.save()
+            
+            self.last_action = action
 
             return self.map_action_to_heart(action) 
 
-        return 0
+        return self.map_action_to_heart(self.last_action)
 
     def map_action_to_heart(self, action):
         stimuli_map = np.zeros(self.grid)
@@ -191,7 +194,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbal', action="store_true", default=False)
     parser.add_argument('-c', '--cores', type=int, default=1)
     parser.add_argument('-r', '--record', action="store_true", default=False)
-    parser.add_argument('-disr', '--disrupt', action="store_true", desfault=False)
+    parser.add_argument('-disr', '--disrupt', action="store_true", default=False)
 
     args = parser.parse_args()
 

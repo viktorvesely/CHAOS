@@ -1,0 +1,33 @@
+{
+    "t_start": 0,
+    "t_end": 150000,
+    "BPS": 2,
+    "stim_start": 1,
+    "stim_end": 50,
+    "stim_amplitude": 40, 
+    "gridx": 14,
+    "gridy": 18,
+    "min_resistivity": 8,
+    "max_resistivity": 20,
+    "resistivity_path": "./scared_mask.png",
+    "sampling_frequency": 20,
+    "detectors": [
+        [0, 9],
+        [7, 0]
+    ],
+    "injectors": [
+        [0, 9],
+        [7, 0]
+    ],
+    "max_action": 40,
+    "min_action": -40,
+    "actor": "sinus",
+    "noise_sinus_settings": {
+        "frequency": 70
+    },
+    "noise_rect_settigns": {
+        "periodMuMs": 50,
+        "periodStdMs": 15,
+        "t_start": 3
+    }
+}
