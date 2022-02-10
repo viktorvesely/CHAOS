@@ -5,7 +5,7 @@ import time
 
 import cell
 import solver
-import resistivity
+import masks
  
 # Special flag for peregrine
 
@@ -23,7 +23,7 @@ if not peregrine:
 euler = True
 
 # Stabilize the simulation
-clipVs = True
+clipVs = False
 maxActivation = 80 # mV
 minActivation = -120 # mV
 
@@ -49,10 +49,10 @@ gate_list = ["m", "h", "j", "d", "f", "X"]
  
 #--------------Solving functions----------------
 
-def heartbeat(t, I, BPS, stim_start, stim_end, stim_amplitude):
-    T = t # % (1000 / BPS)
+def heartbeat(t, I, SA_node, stim_start, stim_end, stim_amplitude):
+    T = t
     stim = stim_amplitude if (T >= stim_start) and (T <= stim_end) else 0
-    I[0, 0] = stim
+    I[SA_node] = stim
 
 
 def make_state():
@@ -154,11 +154,12 @@ def dStatedt(
     gridy,
     periodicX,
     periodicY,
-    BPS,
+    SA_node,
     stim_start,
     stim_end,
     stim_amplitude,
-    action=0
+    action=0,
+    isolated=False
     ):
     dState = make_state()
     o = make_other()
@@ -169,8 +170,12 @@ def dStatedt(
     # Gather data for V_m
     I_ions = ions(s, dState, o)
     I_stim = np.zeros((gridy, gridx))
-    heartbeat(t, I_stim, BPS, stim_start, stim_end, stim_amplitude)
+    heartbeat(t, I_stim, SA_node, stim_start, stim_end, stim_amplitude)
     o["I_stim"] = I_stim + action
+
+    if isolated:
+        dState["V"] = -(1 / Cm) * (I_ions - I_stim)
+        return dState, o
 
     if euler:
         dState["V"] = solver.euler_solve(
@@ -212,42 +217,8 @@ def fill_track(track, s, o):
         value = s[var][0, 0] if var in s else o[var][0, 0]
         track[var].append(value)
 
-def solve(
-    params,
-    videoOut=False,
-    verbal=False,
-    onTick=None,
-    s0_disturbance=0
-):
-    
-    t_start = params.get("t_start")
-    t_end = params.get("t_end")
-    t_duration = t_end - t_start
 
-    BPS = params.get("BPS")
-    rythm = (1000 / BPS)
-    stim_start = params.get("stim_start")
-    stim_end = params.get("stim_end")
-    stim_amplitude = params.get("stim_amplitude")    
-
-    if (stim_start > stim_end or
-        stim_end > rythm or
-        stim_start < 0):
-        raise ValueError(f"Incorrect parameters. Change BPS: {BPS}, stim_start: {stim_start}, or stim_end: {stim_end} so it makes sense")
-
-    gridx = params.get("gridx")
-    gridy = params.get("gridy")
-    periodicX = params.get("periodicX")
-    periodicY = params.get("periodicY")
-    minRho = params.get("min_resistivity")
-
-    rhoDx, rhoDy = resistivity.get_resistivity_masks(
-        (gridy, gridx),
-        (params.get("min_resistivity"), params.get("max_resistivity")), 
-        params.get("resistivity_path")
-    )
-
-    # ----------Initialize state 0------------------
+def get_s0(gridx, gridy, s0_disturbance=0):
     s0 = make_state()
 
     RP = np.ones((gridy, gridx)) * resting_potential
@@ -287,6 +258,61 @@ def solve(
 
     s0["Ca_i"] = np.ones((gridy, gridx), dtype=np.float) * cell.Ca_i_initial
 
+    return s0
+
+def solve(
+    params,
+    videoOut=False,
+    verbal=False,
+    onTick=None,
+    s0_disturbance=0
+):
+    
+    t_start = params.get("t_start")
+    t_end = params.get("t_end")
+    t_duration = t_end - t_start
+
+    SA_node = tuple(params.get("SA_node"))
+    sink = params.get("sink")
+    do_sink = bool(sink)
+    sink = tuple(sink) if do_sink else None
+
+    BPS = params.get("BPS")
+    rythm = (1000 / BPS)
+    stim_start = params.get("stim_start")
+    stim_end = params.get("stim_end")
+    stim_amplitude = params.get("stim_amplitude")    
+
+    if (stim_start > stim_end or
+        stim_end > rythm or
+        stim_start < 0):
+        raise ValueError(f"Incorrect parameters. Change BPS: {BPS}, stim_start: {stim_start}, or stim_end: {stim_end} so it makes sense")
+
+    gridx = params.get("gridx")
+    gridy = params.get("gridy")
+    periodicX = params.get("periodicX")
+    periodicY = params.get("periodicY")
+    minRho = params.get("min_resistivity")
+
+    mask = masks.Mask(params.get("resistivity_path"), (gridy, gridx))
+
+    g_K = mask(
+        params.get("g_channel"),
+        (params.get("min_g"), params.get("max_g"))
+    )
+
+    cell.Gbar_K(g_K)
+
+    rhoDx = mask(
+        params.get("resistivity_channel"),
+        (params.get("min_resistivity"), params.get("max_resistivity"))
+    )
+
+    rhoDy = rhoDx.copy()
+
+    # ----------Initialize state 0------------------
+    s0 = get_s0(gridx, gridy, s0_disturbance)
+
     # ----------SIM_START---------------
     state = s0
     ts = np.arange(t_start, t_end, dt)
@@ -301,7 +327,7 @@ def solve(
         grids = []
 
     next_time = 0
-    next_step = (t_duration * 0.05) / 1000
+    next_step = (t_duration * 0.3) / 1000
 
     next_frame = 0
     
@@ -326,7 +352,7 @@ def solve(
             gridy,
             periodicX,
             periodicY,
-            BPS,
+            SA_node,
             stim_start,
             stim_end,
             stim_amplitude,
@@ -338,7 +364,9 @@ def solve(
         for key, stateVar in dState.items():
             if key == "V":
                 # From solvers
-                solver.wrap_around(stateVar, 3, dx, dy, dt, SV, Cm, resting_potential)
+                if do_sink:
+                    solver.wrap_around(stateVar, minRho, dx, dy, dt, SV, Cm, SA_node, sink)
+
                 Vclipped = np.clip(stateVar, minActivation, maxActivation) if clipVs else stateVar
                 newState[key] = Vclipped
                 continue

@@ -18,10 +18,10 @@ E_Na = 54.4
 g_si = 0.09
 E_si_o = -10
 
-g_K = 0.282
+g_K_param_default = 2 #0.282 # - lower number higher refractory period
 E_K = -77
 
-g_K1 = 0.6047
+g_K1 =  0.6047
 E_K1 = -84 # TODO verify this
 
 g_b = 0.03921
@@ -74,14 +74,18 @@ def dCa_idt(I_si, Ca_i):
     return -10 ** (-4) * I_si + 0.07 * (10 ** (-4) - Ca_i)
 
 
-def Gbar_K():
-    return g_K * math.sqrt(K_o / 5.4)
+
+def Gbar_K(g_K):
+    global gbar_K
+
+    gbar_K = g_K * np.sqrt(K_o / 5.4)
+
 
 
 def Gbar_K1():
     return g_K1 * math.sqrt(K_o / 5.4)
 
-gbar_K = Gbar_K()
+gbar_K = None
 gbar_K1 = Gbar_K1()
 
 
@@ -168,3 +172,59 @@ def alpha_K1(V):
 
 def beta_K1(V):
     return (0.49124 * np.exp(0.08032 * (V - E_K1 + 5.476)) + np.exp(0.06175 * (V - E_K1 - 594.31))) / (1 + np.exp(-.5143 * (V - E_K1 + 4.753))) * alpha_beta_conversion
+
+
+if __name__ == '__main__':
+    from heart import get_s0, dStatedt, make_state
+    from matplotlib import pyplot as plt
+
+    gridx = 1
+    gridy = 1
+
+    t_start = 0
+    t_end = 200
+    dt = 0.015
+    
+    s0 = get_s0(gridx, gridy)
+    ts = np.arange(t_start, t_end, dt)
+    state = s0
+
+    Vs = []
+
+    for t in ts:
+
+        Vs.append(state["V"])
+
+        dState, other = dStatedt(
+            state,
+            t,
+            0,
+            0,
+            gridx,
+            gridy,
+            False,
+            False,
+            (0, 0),
+            1,
+            50,
+            20,
+            isolated=True
+        )
+
+        newState = make_state()
+
+        for key, stateVar in dState.items():
+            newState[key] = state[key] + stateVar * dt
+        
+        state = newState
+    
+    Vs = np.array(Vs)
+    Vs = np.squeeze(Vs)
+    plt.plot(ts, Vs)
+    plt.show()
+        
+
+
+    
+
+    

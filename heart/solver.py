@@ -161,15 +161,13 @@ def euler_solve(
     return (dVDx + dVDy - I) * (dt / C) + V
 
 
-def wrap_around(V, rho, dx, dy, dt, Sv, C, resting_potential):
-    sink = V[V.shape[0] - 1,  V.shape[1] - 1]
-    SA_node = V[0, 0]
-    
-    excitation = sink - resting_potential
-    
-    if excitation > 3:
-        dv = ((sink - SA_node) / rho) / (dx * dy * Sv) * 1.5
-        V[0, 0] = dv * (dt / C) + V[0, 0]
+def wrap_around(V, rho, dx, dy, dt, Sv, C, SA_node_pos, sink_pos):
+    sink = V[sink_pos]
+    SA_node = V[SA_node_pos] 
+    dv = ((sink - SA_node) / rho) / (dx * dy * Sv) * 1.5
+
+    if dv > 0:
+        V[SA_node_pos] = dv * (dt / C) + V[SA_node_pos]
 
 
 # def solve(
