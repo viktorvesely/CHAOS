@@ -7,7 +7,6 @@ var frameId = null;
 var gridy = data[0].length;
 var gridx = data[0][0].length;
 
-
 var width = null;
 var height = null;
 var tileW = null;
@@ -25,12 +24,16 @@ var options = {
     step: () => {
         frameId++;
     },
+    showG_k: false,
+    showRho: false,
     speed: 1
 }
 
 gui.add(options, "reset");
 gui.add(options, "pause");
 gui.add(options, "step");
+gui.add(options, "showG_k");
+gui.add(options, "showRho");
 gui.add(options, "speed").min(0).max(2).step(0.01);
 
 function rescale() {
@@ -63,8 +66,8 @@ function draw() {
     let index = Math.round(frameId);
 
     if (index >= data.length) {
-        requestAnimationFrame(draw);
-        return;
+        frameId = data.length - 1;
+        index = data.length - 1;
     };
     
     frame = data[index];
@@ -77,8 +80,17 @@ function draw() {
     for (let y = 0; y < gridy; y++) {
         for (let x = 0; x < gridx; x++) {
             let v = frame[y][x] * 255;
+            let g = g_k[y][x] * 255;
+            let r = rho[y][x] * 255;
 
-            ctx.fillStyle =`rgb(${v}, 0, ${v})`;
+            if (options.showG_k) {
+                ctx.fillStyle =`rgb(0, 0, ${g})`;   
+            } else if (options.showRho) {
+                ctx.fillStyle =`rgb(${r}, 0, 0)`;   
+            } else {
+                ctx.fillStyle =`rgb(${v}, 0, ${v})`;   
+            }
+
             ctx.beginPath();
             ctx.rect(x * tileW, y * tileH, tileW, tileH);
             ctx.fill();

@@ -6,10 +6,10 @@ class Mask:
     def __init__(self, path, grid=None):
         img = cv2.imread(path)
 
-        out=cv2.transpose(img)
-        out=cv2.flip(out,flipCode=1)
+        #out = cv2.transpose(img)
+        #out = cv2.flip(out,flipCode=1)
 
-        self.mask = out
+        self.mask = img
 
         self.grid = grid
 

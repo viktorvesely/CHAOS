@@ -292,20 +292,23 @@ def solve(
     gridy = params.get("gridy")
     periodicX = params.get("periodicX")
     periodicY = params.get("periodicY")
-    minRho = params.get("min_resistivity")
 
     mask = masks.Mask(params.get("resistivity_path"), (gridy, gridx))
 
+    min_g = params.get("min_g")
+    max_g = params.get("max_g")
     g_K = mask(
         params.get("g_channel"),
-        (params.get("min_g"), params.get("max_g"))
+        (min_g, max_g)
     )
 
     cell.Gbar_K(g_K)
 
+    minRho = params.get("min_resistivity")
+    maxRho = params.get("max_resistivity")
     rhoDx = mask(
         params.get("resistivity_channel"),
-        (params.get("min_resistivity"), params.get("max_resistivity"))
+        (minRho, maxRho)
     )
 
     rhoDy = rhoDx.copy()
@@ -395,6 +398,15 @@ def solve(
         with open("./roentgen/video.js", 'w') as fi:
             jString = "var data = {}; var dt = {};".format(json.dumps(grids), (dt * every_nth_frame))
             fi.write(jString)
+        with open("./roentgen/g_k.js", 'w') as fi:
+            g_k_normal = (g_K - min_g) / (max_g - min_g)
+            jString = "var g_k = {};".format(json.dumps(g_k_normal.tolist()))
+            fi.write(jString)
+        with open("./roentgen/rho.js", 'w') as fi:
+            rho_normal = (rhoDx - minRho) / (maxRho - minRho) 
+            jString = "var rho = {};".format(json.dumps(rho_normal.tolist()))
+            fi.write(jString)
+        
 
     if debug_graphs:
         V_max = np.max(track["V"])
