@@ -24,7 +24,7 @@ var options = {
     step: () => {
         frameId++;
     },
-    showG_k: false,
+    showK_o: false,
     showRho: false,
     speed: 1
 }
@@ -32,7 +32,7 @@ var options = {
 gui.add(options, "reset");
 gui.add(options, "pause");
 gui.add(options, "step");
-gui.add(options, "showG_k");
+gui.add(options, "showK_o");
 gui.add(options, "showRho");
 gui.add(options, "speed").min(0).max(2).step(0.01);
 
@@ -80,10 +80,10 @@ function draw() {
     for (let y = 0; y < gridy; y++) {
         for (let x = 0; x < gridx; x++) {
             let v = frame[y][x] * 255;
-            let g = g_k[y][x] * 255;
-            let r = rho[y][x] * 255;
+            //let g = g_k[y][x] * 255;
+            //let r = rho[y][x] * 255;
 
-            if (options.showG_k) {
+            if (options.showK_o) {
                 ctx.fillStyle =`rgb(0, 0, ${g})`;   
             } else if (options.showRho) {
                 ctx.fillStyle =`rgb(${r}, 0, 0)`;   

@@ -36,12 +36,12 @@ c_max = 40 # mV
 debug_graphs = False
 track_vars = ["I_si", "I_Na", "I_K", "V", "m", "h", "j", "d", "f", "X", "X_i", "I_stim"]
 
-# Physic constants
+# Physical constants
 resting_potential = -81.1014 # mV
 dt = 0.015 # ms
 dx = 200 * 10 ** (-4) #200 * 10 ** (-4) # cm
 dy = dx
-thickness = 0.08 # cm, https://www.ncbi .nlm.nih.gov/pmc/articles/PMC5841556/
+thickness = 0.08 # cm, https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5841556/
 SV = 0.24 * 10 ** (4) # surface to volume ratio 
 Cm = 1
 
@@ -49,8 +49,8 @@ gate_list = ["m", "h", "j", "d", "f", "X"]
  
 #--------------Solving functions----------------
 
-def heartbeat(t, I, SA_node, stim_start, stim_end, stim_amplitude):
-    T = t
+def heartbeat(t, I, BPS, SA_node, stim_start, stim_end, stim_amplitude):
+    T = t % (1000 / BPS)
     stim = stim_amplitude if (T >= stim_start) and (T <= stim_end) else 0
     I[SA_node] = stim
 
@@ -154,6 +154,7 @@ def dStatedt(
     gridy,
     periodicX,
     periodicY,
+    BPS,
     SA_node,
     stim_start,
     stim_end,
@@ -170,7 +171,7 @@ def dStatedt(
     # Gather data for V_m
     I_ions = ions(s, dState, o)
     I_stim = np.zeros((gridy, gridx))
-    heartbeat(t, I_stim, SA_node, stim_start, stim_end, stim_amplitude)
+    heartbeat(t, I_stim, BPS, SA_node, stim_start, stim_end, stim_amplitude)
     o["I_stim"] = I_stim + action
 
     if isolated:
@@ -295,14 +296,15 @@ def solve(
 
     mask = masks.Mask(params.get("resistivity_path"), (gridy, gridx))
 
-    min_g = params.get("min_g")
-    max_g = params.get("max_g")
-    g_K = mask(
-        params.get("g_channel"),
-        (min_g, max_g)
+    min_k = params.get("min_k")
+    max_k = params.get("max_k")
+    k_o = mask(
+        params.get("k_o_channel"),
+        (min_k, max_k)
     )
 
-    cell.Gbar_K(g_K)
+    cell.Gbar_K(k_o)
+    cell.Gbar_K1(k_o)
 
     minRho = params.get("min_resistivity")
     maxRho = params.get("max_resistivity")
@@ -355,6 +357,7 @@ def solve(
             gridy,
             periodicX,
             periodicY,
+            BPS,
             SA_node,
             stim_start,
             stim_end,
@@ -399,7 +402,7 @@ def solve(
             jString = "var data = {}; var dt = {};".format(json.dumps(grids), (dt * every_nth_frame))
             fi.write(jString)
         with open("./roentgen/g_k.js", 'w') as fi:
-            g_k_normal = (g_K - min_g) / (max_g - min_g)
+            g_k_normal = (k_o - min_k) / (max_k - min_k)
             jString = "var g_k = {};".format(json.dumps(g_k_normal.tolist()))
             fi.write(jString)
         with open("./roentgen/rho.js", 'w') as fi:
@@ -409,8 +412,6 @@ def solve(
         
 
     if debug_graphs:
-        V_max = np.max(track["V"])
-        print(f"Vmax_mid = {V_max}")
 
         fig, axs = plt.subplots(2, 2)
         fig.suptitle('Debug')

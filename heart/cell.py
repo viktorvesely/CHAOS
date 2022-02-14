@@ -5,7 +5,7 @@ e = math.e
 
 alpha_beta_conversion = 1
 
-K_o = 5.4
+K_o_param = 5.4
 K_i = 145
 Na_i = 18
 Na_o =  140
@@ -18,7 +18,7 @@ E_Na = 54.4
 g_si = 0.09
 E_si_o = -10
 
-g_K_param_default = 2 #0.282 # - lower number higher refractory period
+g_K = 0.282 
 E_K = -77
 
 g_K1 =  0.6047
@@ -73,21 +73,19 @@ def dGatedt(gate, alpha, beta):
 def dCa_idt(I_si, Ca_i):
     return -10 ** (-4) * I_si + 0.07 * (10 ** (-4) - Ca_i)
 
-
-
-def Gbar_K(g_K):
+def Gbar_K(K_o):
     global gbar_K
 
     gbar_K = g_K * np.sqrt(K_o / 5.4)
 
 
+def Gbar_K1(K_o):
+    global gbar_K1
 
-def Gbar_K1():
-    return g_K1 * math.sqrt(K_o / 5.4)
+    gbar_K1 = g_K1 * np.sqrt(K_o / 5.4)
 
 gbar_K = None
-gbar_K1 = Gbar_K1()
-
+gbar_K1 = None
 
 def E_si(Ca_i):
     return 7.7 - 13.0287 * np.log(Ca_i)
