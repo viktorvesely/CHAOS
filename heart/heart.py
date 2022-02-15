@@ -50,7 +50,8 @@ gate_list = ["m", "h", "j", "d", "f", "X"]
 #--------------Solving functions----------------
 
 def heartbeat(t, I, BPS, SA_node, stim_start, stim_end, stim_amplitude):
-    T = t % (1000 / BPS)
+    #T = t % (1000 / BPS)
+    T = t
     stim = stim_amplitude if (T >= stim_start) and (T <= stim_end) else 0
     I[SA_node] = stim
 
@@ -274,9 +275,6 @@ def solve(
     t_duration = t_end - t_start
 
     SA_node = tuple(params.get("SA_node"))
-    sink = params.get("sink")
-    do_sink = bool(sink)
-    sink = tuple(sink) if do_sink else None
 
     BPS = params.get("BPS")
     rythm = (1000 / BPS)
@@ -370,9 +368,6 @@ def solve(
         for key, stateVar in dState.items():
             if key == "V":
                 # From solvers
-                if do_sink:
-                    solver.wrap_around(stateVar, minRho, dx, dy, dt, SV, Cm, SA_node, sink)
-
                 Vclipped = np.clip(stateVar, minActivation, maxActivation) if clipVs else stateVar
                 newState[key] = Vclipped
                 continue
@@ -437,6 +432,7 @@ def solve(
         axs[1 , 1].legend()
 
         plt.show(block=False)
+        input("Press [Enter] to continue")
 
 
 

@@ -80,8 +80,8 @@ function draw() {
     for (let y = 0; y < gridy; y++) {
         for (let x = 0; x < gridx; x++) {
             let v = frame[y][x] * 255;
-            //let g = g_k[y][x] * 255;
-            //let r = rho[y][x] * 255;
+            let g = g_k[y][x] * 255;
+            let r = rho[y][x] * 255;
 
             if (options.showK_o) {
                 ctx.fillStyle =`rgb(0, 0, ${g})`;   

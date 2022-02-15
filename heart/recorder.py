@@ -22,8 +22,14 @@ class Recorder:
         self.next_sample = 0
         self.grid = (self.pars.get("gridy"), self.pars.get("gridx"))
         
-        self.detectors = tuple(self.pars.get("detectors"))
-        self.injectors = tuple(self.pars.get("injectors"))
+        self.detectors = tuple(
+            np.array(self.pars.get("detectors")).T
+        )
+
+        self.injectors = tuple(
+            np.array(self.pars.get("injectors")).T
+        )
+
         self.num_actions = len(self.injectors)
 
         self.states = []

@@ -27,15 +27,27 @@ E_K1 = -84 # TODO verify this
 g_b = 0.03921
 E_b = -59.87
 
+#-------Artificial adjustment---------------
+
+# Decrease time constant of the time dependent
+# repolarizing current by a fixed amount 
+X_multiplier = 5
+
+# Decrease the amplitude of the AP
+g_Na_multiplier = 1
+
+# Shorten the platue of the AP
+g_si_multiplier = 0.2
+
 #--------------Currents---------------------
 
 
 def I_Na(V, m, h, j):
-    return g_Na * np.power(m, 3) * h * j * (V - E_Na)
+    return (g_Na * g_Na_multiplier) * np.power(m, 3) * h * j * (V - E_Na)
 
 
 def I_si(V, d, f, E_si):
-    return g_si * d * f * (V - E_si)
+    return (g_si * g_si_multiplier) * d * f * (V - E_si)
 
 
 def I_K(V, X, X_i):
@@ -157,11 +169,11 @@ def Kp(V):
 
 
 def alpha_X(V):
-    return 0.0005 * np.exp(0.083 * (V + 50)) / (1 + np.exp(0.057 * (V + 50))) * alpha_beta_conversion
+    return (0.0005 * X_multiplier) * np.exp(0.083 * (V + 50)) / (1 + np.exp(0.057 * (V + 50))) * alpha_beta_conversion
 
 
 def beta_X(V):
-    return 0.0013 * np.exp(-0.06 * (V + 20)) / (1 + np.exp(-0.04 * (V + 20))) * alpha_beta_conversion
+    return (0.0013 * X_multiplier) * np.exp(-0.06 * (V + 20)) / (1 + np.exp(-0.04 * (V + 20))) * alpha_beta_conversion
 
 
 def alpha_K1(V):

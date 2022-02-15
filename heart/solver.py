@@ -151,6 +151,10 @@ def euler_solve(
     if not periodicY:
         BN[height -1,:] = V[height -1,:]
         TN[0,:] = V[0,:]
+    else:
+        #----One way jump in the bottom----------
+        BN[height -1,:] = V[height -1,:]
+
 
     rhoDxRN = np.roll(rhoDx, (-1, 0))
     rhoDyBN = np.roll(rhoDy, (-1,0), (0,1))
