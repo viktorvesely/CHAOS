@@ -17,7 +17,7 @@
     "max_k": 9,
     "k_o_channel": 0,
     "sampling_frequency": 20,
-    "SA_node": [0, 0], 
+    "SA_node": [0, 0],
     "detectors": [
         [0, 0], [0, 7],
         [9, 0], [9, 7],

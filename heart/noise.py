@@ -1,12 +1,13 @@
 import numpy as np
 from math import pi
+from scipy import signal
 
 class SinusNoise:
 
     min_theta = -10_000
     max_theta = 10_000
 
-    def __init__(self, maxAction, minAction, numActions, settings):
+    def __init__(self, minAction, maxAction, numActions, settings):
         self.sqrt2 = np.sqrt(2)
         self.f = settings['frequency']
         self.max = maxAction
@@ -23,9 +24,68 @@ class SinusNoise:
         range01 = (range11 + 1) / 2
         return range01 * (self.max - self.min) + self.min
 
+# Code from https://stackoverflow.com/a/39032946/7020366
+class WhiteNoise:
+    
+    block_duration = 10_000 # ms
+    washout = 200
+
+    def __init__(self, minAction, maxAction, numActions, settings):
+        self.max = maxAction
+        self.min = minAction
+        self.numActions = numActions
+        self.cutoff = settings['cutoff']
+        self.order = settings['order']
+        self.fs = settings['fs']
+        self.zeros = np.zeros(numActions)
+        self.block = None
+        self.next_block = -float('inf')
+        self.t = None
+
+    def butter_highpass(self):
+        nyq = 0.5 * self.fs
+        normal_cutoff = self.cutoff / nyq
+        b, a = signal.butter(self.order, normal_cutoff, btype='low', analog=False)
+        return b, a
+
+    def butter_highpass_filter(self):
+        b, a = self.butter_highpass()
+        y = signal.filtfilt(b, a, self.block, axis=0, padtype=None)
+        return y
+
+    def generate_block(self):
+        self.block = np.random.random((WhiteNoise.block_duration + WhiteNoise.washout, self.numActions))
+        self.block = self.butter_highpass_filter()
+
+        self.block = self.block[WhiteNoise.washout:]
+
+        mu = np.mean(self.block, axis=0)
+        self.block = self.block - mu * 1.04
+        high = np.amax(self.block, axis=0)
+        self.block = np.clip(self.block, self.zeros, high)
+        
+        transformed_range = (self.max - self.min) / high
+        self.block = (self.block) * transformed_range + self.min
+    
+        self.next_block = self.t + WhiteNoise.block_duration
+    
+    def __call__(self, t):
+        
+        self.t = round(t)
+
+        if self.t > self.next_block:
+            self.generate_block()
+        
+        index = self.t % WhiteNoise.block_duration
+
+        return self.block[index]
+
+    
+
+
 class RectNoise:
 
-    def __init__(self, maxAction, minAction, numAction, settings):
+    def __init__(self, minAction, maxAction, numAction, settings):
         self.activeMu = settings['activePeriodMsMu'] 
         self.activeStd = settings['activePeriodMsStd']
         self.passiveMu = settings['passivePeriodMsMu'] 
@@ -67,7 +127,7 @@ if __name__ == "__main__":
     from matplotlib import pyplot as plt
     import sys
 
-    noise = "rect"
+    noise = "white"
 
     if len(sys.argv) > 1:
         noise = sys.argv[1]
@@ -83,18 +143,29 @@ if __name__ == "__main__":
     elif noise == "sinus":    
         noise = SinusNoise(0, 40, 2, {"frequency": 4})
         print(noise.thetas)
+    elif noise == "white":
+        noise = WhiteNoise(0, 40, 2, {
+            "cutoff": 4,
+            "fs": 400, 
+            "order": 1
+        })
     else:
         raise ValueError(f"Noise with name {noise} is not supported")
 
     t = np.arange(0, 2000, 0.2)
     
-    actions = [noise(t[i]) for i in range(t.size)]
-    actions = np.array(actions).T
+    actions = np.array([noise(t[i]) for i in range(t.size)]).T
+    
+    indicies = t > -1
+    t = t[indicies]
+    action1 = actions[0][indicies]
+    action2 = actions[1][indicies]
+
     plt.xlabel("Time (s)")
     plt.ylabel("Injected current (mA)")
-    plt.plot(t / 1000, actions[0], label="action1")
-    plt.plot(t / 1000, actions[1], label="action2")
+    plt.plot(t / 1000, action1, label="action1")
+    plt.plot(t / 1000, action2, label="action2")
     plt.legend()
-    plt.show(block=True)
+    plt.show()
     
     

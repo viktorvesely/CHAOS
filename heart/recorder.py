@@ -5,7 +5,7 @@ import time
 
 from settings import Params
 from heart import solve
-from noise import SinusNoise, RectNoise
+from noise import SinusNoise, RectNoise, WhiteNoise
 
 class Recorder:
 
@@ -30,7 +30,7 @@ class Recorder:
             np.array(self.pars.get("injectors")).T
         )
 
-        self.num_actions = len(self.injectors)
+        self.num_actions = len(self.injectors[0])
 
         self.states = []
         self.actions = []
@@ -63,6 +63,16 @@ class Recorder:
         if actor == "rect":
             settings = self.pars.get("noise_rect_settings")
             self.noise = RectNoise(
+                self.pars.get("max_action"),
+                self.pars.get("min_action"),
+                self.num_actions,
+                settings
+            )
+            return self.get_action_noise
+
+        if actor == "white":
+            settings = self.pars.get("noise_white_settings")
+            self.noise = WhiteNoise(
                 self.pars.get("max_action"),
                 self.pars.get("min_action"),
                 self.num_actions,
@@ -144,10 +154,10 @@ class Recorder:
                 self.save()
             
             self.last_action = action
-
             return self.map_action_to_heart(action) 
 
         return self.map_action_to_heart(self.last_action)
+        #return self.map_action_to_heart(self.get_action_zeros(None, t))
 
     def map_action_to_heart(self, action):
         stimuli_map = np.zeros(self.grid)
@@ -159,7 +169,7 @@ class Recorder:
         return self.noise(t)
 
     def get_action_zeros(self, state, t):
-        return np.zeros(len(self.injectors))
+        return np.zeros(self.num_actions)
 
     def get_disturbance(self):
         if not self.lineArgs.disrupt:
