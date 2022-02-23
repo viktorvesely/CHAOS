@@ -60,7 +60,7 @@ class WhiteNoise:
         self.block = self.block[WhiteNoise.washout:]
 
         mu = np.mean(self.block, axis=0)
-        self.block = self.block - mu * 1.04
+        self.block = self.block - mu * 0.9
         high = np.amax(self.block, axis=0)
         self.block = np.clip(self.block, self.zeros, high)
         

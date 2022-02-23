@@ -1,6 +1,6 @@
 {
     "t_start": 0,
-    "t_end": 1500,
+    "t_end": 2000,
     "BPS": 1.7,
     "stim_start": 1,
     "stim_end": 40,
@@ -25,12 +25,12 @@
         [29, 0], [29, 7]
     ],
     "injectors": [
-        [0, 2],
-        [9, 4],
-        [19, 2],
-        [29, 4]
+        [0, 3],
+        [9, 3],
+        [19, 3],
+        [29, 3]
     ],
-    "max_action": 60,
+    "max_action": 50,
     "min_action": 0,
     "actor": "white",
     "noise_sinus_settings": {

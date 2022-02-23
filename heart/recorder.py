@@ -9,7 +9,7 @@ from noise import SinusNoise, RectNoise, WhiteNoise
 
 class Recorder:
 
-    MAX_BUFFEE_SIZE = 100_000
+    MAX_BUFFEE_SIZE = 10
     MINIMAL_DISTURBANCE = 1e-3;
 
     def __init__(self, name, n, lineArgs=None):
@@ -53,8 +53,8 @@ class Recorder:
         if actor == "sinus":
             settings = self.pars.get("noise_sinus_settings")
             self.noise = SinusNoise(
-                self.pars.get("max_action"),
                 self.pars.get("min_action"),
+                self.pars.get("max_action"),
                 self.num_actions,
                 settings
             )
@@ -63,8 +63,8 @@ class Recorder:
         if actor == "rect":
             settings = self.pars.get("noise_rect_settings")
             self.noise = RectNoise(
-                self.pars.get("max_action"),
                 self.pars.get("min_action"),
+                self.pars.get("max_action"),
                 self.num_actions,
                 settings
             )
@@ -73,8 +73,8 @@ class Recorder:
         if actor == "white":
             settings = self.pars.get("noise_white_settings")
             self.noise = WhiteNoise(
-                self.pars.get("max_action"),
                 self.pars.get("min_action"),
+                self.pars.get("max_action"),
                 self.num_actions,
                 settings
             )

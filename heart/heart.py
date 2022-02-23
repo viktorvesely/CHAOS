@@ -23,7 +23,7 @@ if not peregrine:
 euler = True
 
 # Stabilize the simulation
-clipVs = False
+clipVs = True
 maxActivation = 80 # mV
 minActivation = -120 # mV
 
