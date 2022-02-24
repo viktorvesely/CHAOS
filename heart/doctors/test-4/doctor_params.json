@@ -1,0 +1,1 @@
+{"dataset": "dataset_test", "beta": 0.001, "n_reservior": 100, "washout": 10, "spectral_radius": 0.95, "log_neurons": 6, "w_in_scale": 0.95, "w_in_mu": 0, "w_scale": 0.95, "w_mu": 0, "d": 10}

@@ -37,6 +37,7 @@ class WhiteNoise:
         self.cutoff = settings['cutoff']
         self.order = settings['order']
         self.fs = settings['fs']
+        self.mean_percentage = settings['mean_percentage']
         self.zeros = np.zeros(numActions)
         self.block = None
         self.next_block = -float('inf')
@@ -60,7 +61,7 @@ class WhiteNoise:
         self.block = self.block[WhiteNoise.washout:]
 
         mu = np.mean(self.block, axis=0)
-        self.block = self.block - mu * 0.9
+        self.block = self.block - mu * self.mean_percentage
         high = np.amax(self.block, axis=0)
         self.block = np.clip(self.block, self.zeros, high)
         

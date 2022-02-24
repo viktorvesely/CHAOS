@@ -2,21 +2,22 @@ import numpy as np
 import os
 import shutil
 import time
+from multiprocessing import Pool
 
-from settings import Params
 from heart import solve
 from noise import SinusNoise, RectNoise, WhiteNoise
+from loader import dedicate_folder
 
 class Recorder:
 
-    MAX_BUFFEE_SIZE = 10
+    MAX_BUFFEE_SIZE = 100
     MINIMAL_DISTURBANCE = 1e-3;
 
-    def __init__(self, name, n, lineArgs=None):
+    def __init__(self, name, core, path, pars, lineArgs=None):
         self.name = name
-        self.number = n
+        self.core = core
         self.lineArgs = lineArgs
-        self.pars = Params("./params.json")
+        self.pars = pars
         
         self.period = 1000 / self.pars.get("sampling_frequency")
         self.next_sample = 0
@@ -37,8 +38,7 @@ class Recorder:
 
         self.save_n_batch = 0
         
-        self.path = None
-        self.create_heart()
+        self.path = path
 
         self.noise = None
         self.get_action = self.resolve_action_mode()
@@ -87,51 +87,17 @@ class Recorder:
             print(arg)
 
 
-    def create_heart(self):
-
-        name = self.name
-        original_name = name  
-        
-        suffix = 1
-        while os.path.isdir(f'./hearts/{name}'):
-            name = f"{original_name}-{suffix}"
-            suffix += 1 
-
-        path = os.path.join(os.getcwd(), 'hearts', name)
-        os.mkdir(path)
-        
-        # Copy settings
-        shutil.copyfile(
-            os.path.join(os.getcwd(), 'params.json'),
-            os.path.join(path, 'params.json')
-        )
-
-        mask_path = self.pars.get("resistivity_path")
-        mask_name = mask_path.split('/')[-1]
-
-        # Copy resistivity mask
-        shutil.copyfile(
-            mask_path,
-            os.path.join(path, mask_name)
-        )
-
-        os.mkdir(os.path.join(path, 'data'))
-
-        self.name = name
-        self.path = path
-
-
     def get_state(self, V):
         return V[self.detectors]
 
     def save(self):
         np.save(
-            os.path.join(self.path, 'data', f'states_{self.number}_{self.save_n_batch}.npy'),
+            os.path.join(self.path, 'data', f'states_{self.core}_{self.save_n_batch}.npy'),
             np.array(self.states)
         )
 
         np.save(
-            os.path.join(self.path, 'data', f'actions_{self.number}_{self.save_n_batch}.npy'),
+            os.path.join(self.path, 'data', f'actions_{self.core}_{self.save_n_batch}.npy'),
             np.array(self.actions)
         )
 
@@ -200,9 +166,48 @@ class Recorder:
             self.save()
 
 
+def create_heart(name, pars):
+
+    name, path = dedicate_folder(name, os.path.join(os.getcwd(), 'hearts'))
+    
+    # Copy settings
+    shutil.copyfile(
+        os.path.join(os.getcwd(), 'params.json'),
+        os.path.join(path, 'params.json')
+    )
+
+    mask_path = pars.get("resistivity_path")
+    mask_name = mask_path.split('/')[-1]
+
+    # Copy resistivity mask
+    shutil.copyfile(
+        mask_path,
+        os.path.join(path, mask_name)
+    )
+
+    os.mkdir(os.path.join(path, 'data'))
+
+    return name, path
+
+
+def setup_recorder(options):
+    name, core, args, path, pars = options
+
+    recorder = Recorder(
+        name,
+        core,
+        path,
+        pars,
+        lineArgs=args
+    )
+
+    recorder.record()
+    
+
 if __name__ == '__main__':
 
     import argparse
+    from settings import Params
 
     parser = argparse.ArgumentParser()
 
@@ -217,10 +222,27 @@ if __name__ == '__main__':
     if args.record and args.cores > 1:
         raise ValueError(f"It would be unsafe to record the heart with multiprocessing ; ). Change the number of cores from {args.cores} to 0")
 
-    recorder = Recorder(
-        args.name,
-        0,
-        lineArgs=args
-    )
+    if args.verbal and args.cores > 1:
+        print("Verbal flag won't work properly with multiple cores!")
 
-    recorder.record()
+    pars = Params("./params.json")
+    name, path = create_heart(args.name, pars)
+
+
+    if args.cores > 1:
+        duration = (pars.get("t_end") - pars.get("t_start")) / 1000
+        print(f"Simulating {args.cores} heart(s) simultaneously for {duration} seconds")
+        pool_args = [ [name, core, args, path, pars]  for core in range(args.cores)]
+        
+        with Pool(args.cores) as p:
+            p.map(setup_recorder, pool_args)
+    else:
+        recorder = Recorder(
+            name,
+            0,
+            path,
+            pars,
+            lineArgs=args
+        )
+
+        recorder.record()

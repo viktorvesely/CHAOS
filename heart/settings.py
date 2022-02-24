@@ -13,3 +13,6 @@ class Params:
             raise ValueError(f"Parameter with name {name} is not defined in {self.__path}")
 
         return self.__params[name]
+
+    def params(self):
+        return self.__params
