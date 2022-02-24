@@ -5,7 +5,7 @@
     "washout": 5,
     "spectral_radius": 0.95,
     "log_neurons": 6,
-    "w_in_scale": 0.95,
+    "w_in_scale": 0.09,
     "w_in_mu": 0,
     "w_scale": 0.95,
     "w_mu": 0,

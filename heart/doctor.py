@@ -17,6 +17,8 @@ class Doctor:
         d,
         path,
         log_neurons,
+        u_bounds,
+        y_bounds,
         seed=None
     ):
         
@@ -26,6 +28,8 @@ class Doctor:
         self.beta = beta
         self.washout_period = washout
         self.seed = seed
+        self.u_bounds = u_bounds
+        self.y_bounds = y_bounds
         self.spectral_radius = spectral_radius
         self.d = d
         self.path = path
@@ -40,28 +44,50 @@ class Doctor:
         self.train_state = None
 
         self.XX = np.zeros((self.n_readouts, self.n_readouts))
+        self.XXC = np.zeros((self.n_readouts, self.n_readouts))
+
         self.YX = np.zeros((self.n_output, self.n_readouts))
-        self.XXC = np.zeros((self.n_output, self.n_readouts))
         self.YXC = np.zeros((self.n_output, self.n_readouts))
+
+
+    def normalize_batch(self, batch):
+        states, actions = batch
+        s_min, s_max = self.u_bounds
+        a_min, a_max = self.y_bounds
+
+        s_shape = states.shape
+        states = np.reshape(states, (s_shape[0], s_shape[1], 1))
+        a_shape = actions.shape
+        actions = np.reshape(actions, (a_shape[0], a_shape[1], 1))
+
+        n_samples = s_shape[0]
+
+        states = (states - s_min) / (s_max - s_min)
+        actions = (actions - a_min) / (a_max - a_min)
+
+        return states, actions, n_samples
+
 
     def train(self, generator):
         
         for batch in generator:
 
-            self.washout_period
+            states, actions, n_samples = self.normalize_batch(batch)
 
-            for i, sample in enumerate(batch):
-                
+            for i in range(n_samples):
+
+                if i + self.d >= n_samples:
+                    break
+
                 if self.log_neurons:
                     self.debug_neurons.append(
                         np.squeeze(self.x[self.indicies])
                     )
 
-                if i + self.d >= len(batch):
-                    break
-
-                u_now, y = sample
-                u_future, _ = batch[i + self.d]
+                u_now = states[i]
+                y = actions[i]
+                
+                u_future = states[i + self.d]
 
                 self(u_now, u_future)
 
@@ -81,7 +107,7 @@ class Doctor:
                 temp = self.YX + small
                 self.YXC = (temp - self.YX) - small
                 self.YX = temp
-        
+  
         inversed = np.linalg.inv(self.XX + self.beta * np.identity(self.n_readouts))
         self.w_out = np.matmul(self.YX, inversed)
         self.save_model()
@@ -164,9 +190,7 @@ class Doctor:
         return np.matmul(self.w_out, self.train_state)
     
 
-def get_architecture(pars):
-    heart_path = os.path.join(os.getcwd(), "hearts", pars.get("dataset"))
-    heart_pars = Params(os.path.join(heart_path, "params.json"))
+def get_architecture(pars, heart_pars):
 
     state_size = len(heart_pars.get("detectors"))
     n_input = 2 * state_size
@@ -186,7 +210,9 @@ def boot_doctor_train(name, doc_pars):
     with open(os.path.join(path, "doctor_params.json"), "w") as f:
         json.dump(doc_pars.params(), f)
 
-    architecture = get_architecture(doc_pars)
+    heart_path = os.path.join(os.getcwd(), "hearts", doc_pars.get("dataset"))
+    heart_pars = Params(os.path.join(heart_path, "params.json"))
+    architecture = get_architecture(doc_pars, heart_pars)
 
     doctor = Doctor(
         architecture,
@@ -201,7 +227,15 @@ def boot_doctor_train(name, doc_pars):
         doc_pars.get('spectral_radius'),
         doc_pars.get('d'),
         path,
-        doc_pars.get('log_neurons')
+        doc_pars.get('log_neurons'),
+        [   
+            heart_pars.get('min_Vm'),
+            heart_pars.get('max_Vm')
+        ],
+        [
+            heart_pars.get('min_action'),
+            heart_pars.get('max_action')
+        ]
     )
 
     doctor.train(

@@ -22,11 +22,6 @@ if not peregrine:
 # What solver should the program use
 euler = True
 
-# Stabilize the simulation
-clipVs = True
-maxActivation = 80 # mV
-minActivation = -120 # mV
-
 # Video params
 every_nth_frame = 200
 c_min = -82 # mv
@@ -313,6 +308,9 @@ def solve(
 
     rhoDy = rhoDx.copy()
 
+    min_Vm = params.get("min_Vm")
+    max_Vm = params.get("max_Vm")
+
     # ----------Initialize state 0------------------
     s0 = get_s0(gridx, gridy, s0_disturbance)
 
@@ -368,7 +366,7 @@ def solve(
         for key, stateVar in dState.items():
             if key == "V":
                 # From solvers
-                Vclipped = np.clip(stateVar, minActivation, maxActivation) if clipVs else stateVar
+                Vclipped = np.clip(stateVar, min_Vm, max_Vm)
                 newState[key] = Vclipped
                 continue
 
@@ -378,7 +376,7 @@ def solve(
             fill_track(track, state, other)  
 
         if videoOut and i >= next_frame:
-            V = state["V"] 
+            V = state["V"]
             col = np.clip(
                 (V - c_min) / (c_max - c_min),
                 0,
