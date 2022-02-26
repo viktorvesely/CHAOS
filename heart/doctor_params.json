@@ -1,5 +1,9 @@
 {
     "dataset": "dataset_test",
+    "reference_signal": "reference_signal",
+    "reference_loop_start": 0,
+    "reference_loop_end": 40,
+    "test_time": 5,
     "beta": 0.001,
     "n_reservior": 100,
     "washout": 5,

@@ -2,13 +2,17 @@ import numpy as np
 import os
 import json
 
+import recorder
 from settings import Params
 from loader import dedicate_folder, load_experiment_generator
+from dictator import Dictator
+
 
 class Doctor:
 
     def __init__(
         self, 
+        name,
         architecture,
         beta, 
         washout,
@@ -19,9 +23,13 @@ class Doctor:
         log_neurons,
         u_bounds,
         y_bounds,
+        pars,
+        heart_pars,
+        sampling_frequency,
         seed=None
     ):
-        
+
+        self.name = name        
         self.n_input, self.n_reservior, self.n_output = architecture
         self.n_readouts = self.n_input + self.n_reservior + 1
 
@@ -33,6 +41,12 @@ class Doctor:
         self.spectral_radius = spectral_radius
         self.d = d
         self.path = path
+        self.pars = pars
+        self.heart_pars = heart_pars
+        self.fs = sampling_frequency
+        self.exploit_period = 1000 / sampling_frequency
+        self.dictator = Dictator(self.pars, self.heart_pars)
+        self.test_time = pars.get('test_time')
         self.indicies = np.random.choice(self.n_reservior, size=log_neurons, replace=False)
         self.log_neurons = log_neurons > 0
         self.debug_neurons = []
@@ -50,8 +64,7 @@ class Doctor:
         self.YXC = np.zeros((self.n_output, self.n_readouts))
 
 
-    def normalize_batch(self, batch):
-        states, actions = batch
+    def normalize_batch(self, states, actions):
         s_min, s_max = self.u_bounds
         a_min, a_max = self.y_bounds
 
@@ -67,12 +80,60 @@ class Doctor:
 
         return states, actions, n_samples
 
+    def exploit(self, u_now, t):
+        
+        n = round(t / self.exploit_period)
+        u_desired = self.dictator.u_ref(n)
 
+        yhat = self(u_now, u_desired)
+
+        return yhat.flatten()
+
+    def test(self):
+
+        heart_name = self.pars.get("dataset")
+        hearts_path = os.path.join(os.getcwd(), "hearts", heart_name)
+        doctor_heart_name = f"TEST_{self.name}_{heart_name}"
+        doctor_heart_name, path = dedicate_folder(doctor_heart_name, hearts_path)
+        test_time = self.pars.get("test_time")
+    
+        print(f"Generating test '{doctor_heart_name}' for {test_time} simulation seconds")
+
+        # Override the duration of the simulation
+        original_t_start = self.heart_pars.get("t_start")
+        original_t_end = self.heart_pars.get("t_end")
+        t_end = self.pars.get("test_time") * self.sampling_frequency
+        t_end *= 1000 # Convert to ms
+        t_start = 0
+        self.heart_pars.override("t_start", t_start)
+        self.heart_pars.override("t_end", t_end)        
+
+        # Start the model
+        heart = recorder.Recorder(
+            doctor_heart_name,
+            0,
+            path,
+            self.heart_pars
+        ).setup_interactive_mode(self.exploit)
+
+        heart.record()
+        self.dictator.save_ref_sequence(os.path.join(path, 'data', 'ref.npy'))
+
+        # Restore heart params just in case : )
+        self.heart_pars.override("t_start", original_t_start)
+        self.heart_pars.override("t_end", original_t_end)
+    
+        
+        
+        
     def train(self, generator):
         
-        for batch in generator:
+        print("Training network")
 
-            states, actions, n_samples = self.normalize_batch(batch)
+        for states, actions in generator:
+                            
+            states, actions, n_samples = self.normalize_batch(states, actions)
+            
 
             for i in range(n_samples):
 
@@ -111,6 +172,7 @@ class Doctor:
         inversed = np.linalg.inv(self.XX + self.beta * np.identity(self.n_readouts))
         self.w_out = np.matmul(self.YX, inversed)
         self.save_model()
+        self.test()
         
 
     def save_model(self):
@@ -215,6 +277,7 @@ def boot_doctor_train(name, doc_pars):
     architecture = get_architecture(doc_pars, heart_pars)
 
     doctor = Doctor(
+        name,
         architecture,
         doc_pars.get('beta'),
         doc_pars.get('washout'),
@@ -235,7 +298,9 @@ def boot_doctor_train(name, doc_pars):
         [
             heart_pars.get('min_action'),
             heart_pars.get('max_action')
-        ]
+        ],
+        doc_pars,
+        heart_pars.get('sampling_frequency')
     )
 
     doctor.train(

@@ -2,11 +2,16 @@ import numpy as np
 import os
 import shutil
 import time
+from enum import Enum
 from multiprocessing import Pool
 
 from heart import solve
 from noise import SinusNoise, RectNoise, WhiteNoise
 from loader import dedicate_folder
+
+class RecorderMode(Enum):
+    Generation = 0
+    Interactive = 1
 
 class Recorder:
 
@@ -44,6 +49,12 @@ class Recorder:
         self.get_action = self.resolve_action_mode()
         self.last_action = 0
 
+    def setup_interactive_mode(self, get_action_callback):
+        self.lineArgs = get_parser_defaults(self.name)
+        self.lineArgs.verbal = True
+        self.get_action = get_action_callback
+        return self
+
     def resolve_action_mode(self):
         actor = self.pars.get("actor")
 
@@ -79,13 +90,13 @@ class Recorder:
                 settings
             )
             return self.get_action_noise
+            
 
         raise ValueError(f"Invalid actor: Got {actor} check the code for expected")
 
     def print(self, arg):
         if self.lineArgs.verbal:
             print(arg)
-
 
     def get_state(self, V):
         return V[self.detectors]
@@ -204,10 +215,27 @@ def setup_recorder(options):
     recorder.record()
     
 
-if __name__ == '__main__':
+def get_parser_defaults(name):
+    class AttributeDict(dict):
+        """dot.notation access to dictionary attributes"""
+        __getattr__ = dict.get
+        __setattr__ = dict.__setitem__
+        __delattr__ = dict.__delitem__
+    
 
+    parser = get_parser()
+    args = parser.parse_args(["--name", "placeholder"])
+
+    all_defaults = {}
+    for key in vars(args):
+        all_defaults[key] = parser.get_default(key)
+    
+    all_defaults["name"] = name
+
+    return AttributeDict(all_defaults)
+
+def get_parser():
     import argparse
-    from settings import Params
 
     parser = argparse.ArgumentParser()
 
@@ -217,6 +245,14 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--record', action="store_true", default=False)
     parser.add_argument('-disr', '--disrupt', action="store_true", default=False)
 
+    return parser
+
+
+if __name__ == '__main__':
+
+    from settings import Params
+
+    parser = get_parser()
     args = parser.parse_args()
 
     if args.record and args.cores > 1:

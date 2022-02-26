@@ -16,3 +16,9 @@ class Params:
 
     def params(self):
         return self.__params
+
+    def override(self, name, value):
+        if name not in self.__params:
+            raise ValueError(f"Parameter with name {name} is not defined in {self.__path}")
+        
+        self.__params[name] = value
