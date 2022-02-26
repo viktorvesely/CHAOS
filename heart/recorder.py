@@ -180,12 +180,6 @@ class Recorder:
 def create_heart(name, pars):
 
     name, path = dedicate_folder(name, os.path.join(os.getcwd(), 'hearts'))
-    
-    # Copy settings
-    shutil.copyfile(
-        os.path.join(os.getcwd(), 'params.json'),
-        os.path.join(path, 'params.json')
-    )
 
     mask_path = pars.get("resistivity_path")
     mask_name = mask_path.split('/')[-1]
@@ -195,6 +189,13 @@ def create_heart(name, pars):
         mask_path,
         os.path.join(path, mask_name)
     )
+
+    # Copy settings
+    pars.override(
+        "resistivity_path",
+        f"./hearts/{name}/{mask_name}"
+    )
+    pars.save(os.path.join(path, 'params.json'))
 
     os.mkdir(os.path.join(path, 'data'))
 

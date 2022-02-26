@@ -11,24 +11,67 @@
     "periodicY": true,
     "min_resistivity": 7,
     "max_resistivity": 30,
-    "resistivity_path": "./new_mask.png",
+    "resistivity_path": "./hearts/test_path-1/new_mask.png",
     "resistivity_channel": 2,
     "min_k": 3,
     "max_k": 9,
     "k_o_channel": 0,
     "sampling_frequency": 20,
-    "SA_node": [0, 0], 
+    "SA_node": [
+        0,
+        0
+    ],
     "detectors": [
-        [0, 0], [0, 7],
-        [9, 0], [9, 7],
-        [19, 0], [19, 7],
-        [29, 0], [29, 7]
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            7
+        ],
+        [
+            9,
+            0
+        ],
+        [
+            9,
+            7
+        ],
+        [
+            19,
+            0
+        ],
+        [
+            19,
+            7
+        ],
+        [
+            29,
+            0
+        ],
+        [
+            29,
+            7
+        ]
     ],
     "injectors": [
-        [0, 2],
-        [9, 4],
-        [19, 2],
-        [29, 4]
+        [
+            0,
+            2
+        ],
+        [
+            9,
+            4
+        ],
+        [
+            19,
+            2
+        ],
+        [
+            29,
+            4
+        ]
     ],
     "max_action": 60.0,
     "min_action": 0.0,
@@ -47,7 +90,7 @@
     },
     "noise_white_settings": {
         "cutoff": 4,
-        "fs": 400, 
+        "fs": 400,
         "order": 1,
         "mean_percentage": 0.9
     }

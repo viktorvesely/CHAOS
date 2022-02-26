@@ -85,7 +85,12 @@ class Doctor:
         n = round(t / self.exploit_period)
         u_desired = self.dictator.u_ref(n)
 
+        u_desired = np.reshape(u_desired, (u_desired.size, 1))
+        u_now = np.reshape(u_now, (u_now.size, 1))
+
         yhat = self(u_now, u_desired)
+
+        # TODO un-normalization + clipping
 
         return yhat.flatten()
 
@@ -102,7 +107,7 @@ class Doctor:
         # Override the duration of the simulation
         original_t_start = self.heart_pars.get("t_start")
         original_t_end = self.heart_pars.get("t_end")
-        t_end = self.pars.get("test_time") * self.sampling_frequency
+        t_end = self.pars.get("test_time") * self.fs
         t_end *= 1000 # Convert to ms
         t_start = 0
         self.heart_pars.override("t_start", t_start)
@@ -269,8 +274,8 @@ def boot_doctor_train(name, doc_pars):
     
     name, path = dedicate_folder(name, os.path.join(os.getcwd(), "doctors"))
     
-    with open(os.path.join(path, "doctor_params.json"), "w") as f:
-        json.dump(doc_pars.params(), f)
+    # Copy settings
+    doc_pars.save(os.path.join(path, "doctor_params.json"))
 
     heart_path = os.path.join(os.getcwd(), "hearts", doc_pars.get("dataset"))
     heart_pars = Params(os.path.join(heart_path, "params.json"))
@@ -300,6 +305,7 @@ def boot_doctor_train(name, doc_pars):
             heart_pars.get('max_action')
         ],
         doc_pars,
+        heart_pars,
         heart_pars.get('sampling_frequency')
     )
 
@@ -314,7 +320,7 @@ def boot_doctor_train(name, doc_pars):
 
 if __name__ == "__main__":
     
-    boot_doctor_train("test", Params("./doctor_params.json"))
+    boot_doctor_train("bigboi", Params("./doctor_params.json"))
 
 
     

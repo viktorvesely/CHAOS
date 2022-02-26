@@ -22,3 +22,8 @@ class Params:
             raise ValueError(f"Parameter with name {name} is not defined in {self.__path}")
         
         self.__params[name] = value
+    
+    def save(self, path):
+
+        with open(path, "w") as f:
+            json.dump(self.__params, f, indent=4)
