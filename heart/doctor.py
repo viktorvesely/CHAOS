@@ -1,6 +1,5 @@
 import numpy as np
 import os
-import json
 
 import recorder
 from settings import Params
@@ -97,7 +96,7 @@ class Doctor:
     def test(self):
 
         heart_name = self.pars.get("dataset")
-        hearts_path = os.path.join(os.getcwd(), "hearts", heart_name)
+        hearts_path = os.path.join(os.getcwd(), "hearts")
         doctor_heart_name = f"TEST_{self.name}_{heart_name}"
         doctor_heart_name, path = dedicate_folder(doctor_heart_name, hearts_path)
         test_time = self.pars.get("test_time")
@@ -142,6 +141,7 @@ class Doctor:
 
             for i in range(n_samples):
 
+
                 if i + self.d >= n_samples:
                     break
 
@@ -152,6 +152,11 @@ class Doctor:
 
                 u_now = states[i]
                 y = actions[i]
+
+                if i < 2:
+                    print(u_now)
+                    print(y)
+
                 
                 u_future = states[i + self.d]
 

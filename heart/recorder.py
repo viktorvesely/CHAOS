@@ -15,7 +15,7 @@ class RecorderMode(Enum):
 
 class Recorder:
 
-    MAX_BUFFEE_SIZE = 100
+    MAX_BUFFEE_SIZE = 10_000
     MINIMAL_DISTURBANCE = 1e-3;
 
     def __init__(self, name, core, path, pars, lineArgs=None):
@@ -171,7 +171,7 @@ class Recorder:
         )
         perf_end = time.perf_counter()
 
-        self.print(f"Solve time: {perf_end - perf_start}")
+        print(f"Solve time core {self.core}: {perf_end - perf_start}")
 
         if len(self.states) > 0:
             self.save()

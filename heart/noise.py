@@ -77,7 +77,7 @@ class WhiteNoise:
         if self.t > self.next_block:
             self.generate_block()
         
-        index = self.t % WhiteNoise.block_duration
+        index = int(self.t % WhiteNoise.block_duration)
 
         return self.block[index]
 

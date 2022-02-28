@@ -1,5 +1,4 @@
 import numpy as np
-import _tdma
 
 # From https://github.com/cpcloud/PyTDMA
 def tdma(A, b):
@@ -14,6 +13,8 @@ def tdma(A, b):
     -------
     ret : N, array-like
     """
+    import _tdma
+    
     lower = np.hstack((0, np.diag(A, -1)))
     middle = np.diag(A).copy()
     upper = np.hstack((np.diag(A, 1), 0))

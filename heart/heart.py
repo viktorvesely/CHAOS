@@ -9,7 +9,7 @@ import masks
  
 # Special flag for peregrine
 
-peregrine = False
+peregrine = True
 
 if not peregrine:
     from matplotlib import pyplot as plt
