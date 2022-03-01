@@ -84,6 +84,8 @@ class Doctor:
         n = round(t / self.exploit_period)
         u_desired = self.dictator.u_ref(n)
 
+        # TODO normalization
+
         u_desired = np.reshape(u_desired, (u_desired.size, 1))
         u_now = np.reshape(u_now, (u_now.size, 1))
 
@@ -128,8 +130,44 @@ class Doctor:
         self.heart_pars.override("t_end", original_t_end)
     
         
+    def test_train_data(self, generator, cores=1):
         
+        print("Testing on train data")
+
+        ys = []
+        yhats = []
+
+        for _ in range(cores):
+
+            states, actions = next(generator)
+
+            states, actions, n_samples = self.normalize_batch(states, actions)
+
+            for i in range(n_samples):
+
+                if i + self.d >= n_samples:
+                    break
+
+                u_now = states[i]
+                y = actions[i]
+                
+                u_future = states[i + self.d]
+
+                yhat = self(u_now, u_future)
+
+                if i < self.washout_period:
+                    continue
+
+                yhats.append(yhat)
+                ys.append(y)
         
+        ys = np.squeeze(np.array(ys))
+        yhats = np.squeeze(np.array(yhats))
+     
+        return ys, yhats
+        
+
+
     def train(self, generator):
         
         print("Training network")
@@ -152,10 +190,6 @@ class Doctor:
 
                 u_now = states[i]
                 y = actions[i]
-
-                if i < 2:
-                    print(u_now)
-                    print(y)
 
                 
                 u_future = states[i + self.d]
@@ -182,7 +216,6 @@ class Doctor:
         inversed = np.linalg.inv(self.XX + self.beta * np.identity(self.n_readouts))
         self.w_out = np.matmul(self.YX, inversed)
         self.save_model()
-        self.test()
         
 
     def save_model(self):
@@ -321,11 +354,30 @@ def boot_doctor_train(name, doc_pars):
         )
     )
 
+    ys, yhats = doctor.test_train_data(
+        load_experiment_generator(
+            doc_pars.get('dataset'), 
+            os.path.join(os.getcwd(), 'hearts')
+        ),
+        cores=1
+    )
+    
+    delta = np.mean((yhats - ys) * (yhats - ys), axis=0)
+    variances = np.var(ys, axis=0)
+    NMSE = delta / variances
+    NRMSE = np.sqrt(NMSE)
+    NRMSE = np.mean(NRMSE)
+
+    print(f"NRMSE: {NRMSE}")
+
+    np.save("./trash/ys.npy", ys)
+    np.save("./trash/yhats.npy", yhats)
+
 
 
 if __name__ == "__main__":
     
-    boot_doctor_train("bigboi", Params("./doctor_params.json"))
+    boot_doctor_train("peregrine_boi", Params("./doctor_params.json"))
 
 
     

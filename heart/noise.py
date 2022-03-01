@@ -148,12 +148,13 @@ if __name__ == "__main__":
         noise = WhiteNoise(0, 40, 2, {
             "cutoff": 4,
             "fs": 400, 
-            "order": 1
+            "order": 1,
+            "mean_percentage": 0.9
         })
     else:
         raise ValueError(f"Noise with name {noise} is not supported")
 
-    t = np.arange(0, 2000, 0.2)
+    t = np.arange(0, 1500, 0.2)
     
     actions = np.array([noise(t[i]) for i in range(t.size)]).T
     
