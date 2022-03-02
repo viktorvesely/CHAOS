@@ -1,10 +1,12 @@
 import numpy as np
 import os
+from scipy import sparse as sp
 
 import recorder
 from settings import Params
 from loader import dedicate_folder, load_experiment_generator
 from dictator import Dictator
+from reservoir import get_w
 
 
 class Doctor:
@@ -46,10 +48,11 @@ class Doctor:
         self.exploit_period = 1000 / sampling_frequency
         self.dictator = Dictator(self.pars, self.heart_pars)
         self.test_time = pars.get('test_time')
+        self.kahan = pars.get('kahan')
         self.indicies = np.random.choice(self.n_reservior, size=log_neurons, replace=False)
         self.log_neurons = log_neurons > 0
         self.debug_neurons = []
-        self.w_in_scale, self.w_in_mu, self.w_scale, self.w_mu = w_params
+        self.w_in_scale, self.w_in_mu, self.w_min, self.w_max = w_params
 
         np.random.seed(self.seed)
         self.w_in, self.w, self.w_out = self.construct_architecture()
@@ -137,6 +140,7 @@ class Doctor:
         ys = []
         yhats = []
 
+        
         for _ in range(cores):
 
             states, actions = next(generator)
@@ -171,9 +175,13 @@ class Doctor:
     def train(self, generator):
         
         print("Training network")
-
+        
+        core = 1
         for states, actions in generator:
-                            
+            
+            print(f"Core: {core}")
+            core += 1
+                        
             states, actions, n_samples = self.normalize_batch(states, actions)
             
 
@@ -200,18 +208,23 @@ class Doctor:
                     continue
 
                 train_state_t = self.train_state.T
+                
+                if self.kahan:
+                    # Kahan summation for XX
+                    small = np.matmul(self.train_state, train_state_t) - self.XXC
+                    temp = self.XX + small
+                    self.XXC = (temp - self.XX) - small
+                    self.XX = temp
 
-                # Kahan summation for XX
-                small = np.matmul(self.train_state, train_state_t) - self.XXC
-                temp = self.XX + small
-                self.XXC = (temp - self.XX) - small
-                self.XX = temp
-
-                # Kahan summation for YX
-                small = np.matmul(y, train_state_t) - self.YXC
-                temp = self.YX + small
-                self.YXC = (temp - self.YX) - small
-                self.YX = temp
+                    # Kahan summation for YX
+                    small = np.matmul(y, train_state_t) - self.YXC
+                    temp = self.YX + small
+                    self.YXC = (temp - self.YX) - small
+                    self.YX = temp
+                
+                else:
+                    self.XX = self.XX + np.matmul(self.train_state, train_state_t)
+                    self.YX = self.YX + np.matmul(y, train_state_t)
   
         inversed = np.linalg.inv(self.XX + self.beta * np.identity(self.n_readouts))
         self.w_out = np.matmul(self.YX, inversed)
@@ -222,7 +235,7 @@ class Doctor:
         p = self.path
 
         np.save(os.path.join(p, "w_in.npy"), self.w_in)
-        np.save(os.path.join(p, "w.npy"), self.w)
+        sp.save_npz(os.path.join(p, "w.npz"), self.w)
         np.save(os.path.join(p, "w_out.npy"), self.w_out)
         
         if self.log_neurons:
@@ -235,7 +248,7 @@ class Doctor:
         p = self.path
 
         self.w_in = np.load(os.path.join(p, "w_in.npy"))
-        self.w = np.load(os.path.join(p, "w.npy"))
+        self.w = sp.load_npz(os.path.join(p, "w.npz"))
         self.w_out = np.load(os.path.join(p, "w_out.npy"))
 
 
@@ -262,22 +275,15 @@ class Doctor:
             (self.n_reservior, self.n_input + 1)
         )
 
-        w = np.random.normal(
-            self.w_mu,
-            self.w_scale,
-            (self.n_reservior, self.n_reservior)
-        )
-
-        sr = np.max(np.abs(np.linalg.eigvals(w)))
-
-        w = (w / sr) * self.spectral_radius
+        w = get_w(self.n_reservior, self.pars)
+        
+        w.data = w.data + self.w_min
 
         w_out = np.random.normal(
             0,
             1,
             (self.n_output, self.n_readouts)
         )
-
 
         return w_in, w, w_out  
 
@@ -287,7 +293,7 @@ class Doctor:
 
         self.x = np.tanh(
             np.matmul(self.w_in, u) +
-            np.matmul(self.w, self.x)
+            self.w.dot(self.x)
         )
 
         self.train_state = self.fast_append(u, self.x) 
@@ -327,8 +333,8 @@ def boot_doctor_train(name, doc_pars):
         [
             doc_pars.get('w_in_scale'),
             doc_pars.get('w_in_mu'),
-            doc_pars.get('w_scale'),
-            doc_pars.get('w_mu')
+            doc_pars.get('w_min'),
+            doc_pars.get('w_max')
         ],
         doc_pars.get('spectral_radius'),
         doc_pars.get('d'),
@@ -361,7 +367,7 @@ def boot_doctor_train(name, doc_pars):
         ),
         cores=1
     )
-    
+
     delta = np.mean((yhats - ys) * (yhats - ys), axis=0)
     variances = np.var(ys, axis=0)
     NMSE = delta / variances

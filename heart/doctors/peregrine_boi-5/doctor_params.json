@@ -5,22 +5,13 @@
     "reference_loop_end": 40,
     "test_time": 0.8,
     "beta": 0.001,
-    "n_reservior": 1000,
-    "average_connection": 10,
+    "n_reservior": 2000,
     "washout": 20,
     "spectral_radius": 0.95,
     "log_neurons": 6,
     "w_in_scale": 0.09,
     "w_in_mu": 0,
-    "w_min": -1,
-    "w_max": 1,
-    "d": 3,
-    "w_method": "sparse",
-    "kahan": false,
-    "w_local": {
-        "local_ratio": 0.6
-    },
-    "w_sparse": {
-        "density": 0.1
-    }
+    "w_scale": 0.95,
+    "w_mu": 0,
+    "d": 3
 }

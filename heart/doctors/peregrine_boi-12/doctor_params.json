@@ -14,13 +14,6 @@
     "w_in_mu": 0,
     "w_min": -1,
     "w_max": 1,
-    "d": 3,
-    "w_method": "sparse",
-    "kahan": false,
-    "w_local": {
-        "local_ratio": 0.6
-    },
-    "w_sparse": {
-        "density": 0.1
-    }
+    "w_sparsity": 0.1,
+    "d": 3
 }

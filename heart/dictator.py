@@ -3,7 +3,6 @@ import numpy as np
 
 class Dictator:
 
-
     def __init__(self, doctor_pars, heart_pars):
         self.doctor_pars = doctor_pars
         self.heart_pars = heart_pars
