@@ -1,7 +1,6 @@
 import numpy as np
 from scipy import sparse as sp
 
-
 def w_local(n, w_min, w_max, spectral_radius, settings):
     local_ratio = settings["local_ratio"]
     
@@ -20,8 +19,8 @@ def w_local(n, w_min, w_max, spectral_radius, settings):
 
     local = np.array(local)
 
-    other = np.random.random(size=(n_other, n_other))
-
+    other = np.random.random(size=(n_other, n_other)) * (w_max - w_min) + w_min
+ 
     M1 = np.zeros((n_local, n_other))
     M2 = np.zeros((n_other, n_local))
 
@@ -82,6 +81,7 @@ def get_w(n_reservoir, pars):
 if __name__ == "__main__":
     
     from settings import Params
+    import os
 
     pars = Params("./doctor_params.json")
     np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
@@ -110,4 +110,10 @@ if __name__ == "__main__":
 
     s = f" {s}"
 
-    print(s)
+    print(calc_sr(w.toarray()))
+    
+    sp.save_npz(os.path.join(os.getcwd(), "trash", "w.npz"), w)
+    
+    w = sp.load_npz(os.path.join(os.getcwd(), "trash", "w.npz"))
+
+    print(calc_sr(w.toarray()))

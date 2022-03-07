@@ -4,8 +4,8 @@
     "reference_loop_start": 0,
     "reference_loop_end": 40,
     "test_time": 0.8,
-    "beta": 0.01,
-    "n_reservior": 800,
+    "beta": 0.001,
+    "n_reservior": 700,
     "average_connection": 10,
     "washout": 20,
     "spectral_radius": 0.95,
@@ -15,12 +15,12 @@
     "w_min": -1,
     "w_max": 1,
     "d": 3,
-    "w_method": "sparse",
+    "w_method": "local",
     "kahan": false,
     "w_local": {
         "local_ratio": 0.6
     },
     "w_sparse": {
-        "density": 0.15
+        "density": 0.1
     }
 }

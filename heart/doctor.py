@@ -1,10 +1,10 @@
 import numpy as np
 import os
 from scipy import sparse as sp
+import time
 
 import recorder
-from settings import Params
-from loader import dedicate_folder, load_experiment_generator
+from loader import dedicate_folder
 from dictator import Dictator
 from reservoir import get_w
 
@@ -140,12 +140,12 @@ class Doctor:
         ys = []
         yhats = []
 
-        
         for _ in range(cores):
 
             states, actions = next(generator)
 
             states, actions, n_samples = self.normalize_batch(states, actions)
+            self.x = self.initial_state()
 
             for i in range(n_samples):
 
@@ -172,18 +172,17 @@ class Doctor:
         
 
 
-    def train(self, generator):
+    def train(self, generator, save=True, verbal=True):
         
-        print("Training network")
+        if verbal:
+            print("Training network")
         
         core = 1
         for states, actions in generator:
             
-            print(f"Core: {core}")
-            core += 1
-                        
+            start = time.perf_counter()
             states, actions, n_samples = self.normalize_batch(states, actions)
-            
+            self.x = self.initial_state()
 
             for i in range(n_samples):
 
@@ -225,18 +224,28 @@ class Doctor:
                 else:
                     self.XX = self.XX + np.matmul(self.train_state, train_state_t)
                     self.YX = self.YX + np.matmul(y, train_state_t)
+            
+            end = time.perf_counter()
+            if verbal:
+                print(f"Core {core} done in {end - start}")
+            core += 1
   
-        inversed = np.linalg.inv(self.XX + self.beta * np.identity(self.n_readouts))
-        self.w_out = np.matmul(self.YX, inversed)
-        self.save_model()
+        self.calc_w_out()
+
+        if save:
+            self.save_model()
         
 
-    def save_model(self):
+    def calc_w_out(self):
+        inversed = np.linalg.inv(self.XX + self.beta * np.identity(self.n_readouts))
+        self.w_out = np.matmul(self.YX, inversed)
+
+    def save_model(self, core=0):
         p = self.path
 
-        np.save(os.path.join(p, "w_in.npy"), self.w_in)
-        sp.save_npz(os.path.join(p, "w.npz"), self.w)
-        np.save(os.path.join(p, "w_out.npy"), self.w_out)
+        np.save(os.path.join(p, f"w_in_{core}.npy"), self.w_in)
+        sp.save_npz(os.path.join(p, f"w_{core}.npz"), self.w)
+        np.save(os.path.join(p, f"w_out.npy"), self.w_out)
         
         if self.log_neurons:
             np.save(
@@ -244,7 +253,7 @@ class Doctor:
                 np.array(self.debug_neurons)
             )
         
-    def load_model(self):
+    def load_model(self, core=""):
         p = self.path
 
         self.w_in = np.load(os.path.join(p, "w_in.npy"))
@@ -275,9 +284,7 @@ class Doctor:
             (self.n_reservior, self.n_input + 1)
         )
 
-        w = get_w(self.n_reservior, self.pars)
-        
-        w.data = w.data + self.w_min
+        w = get_w(self.n_reservior, self.pars)    
 
         w_out = np.random.normal(
             0,
@@ -300,90 +307,6 @@ class Doctor:
 
         return np.matmul(self.w_out, self.train_state)
     
-
-def get_architecture(pars, heart_pars):
-
-    state_size = len(heart_pars.get("detectors"))
-    n_input = 2 * state_size
-
-    n_reservior = pars.get("n_reservior")
-    
-    n_output = len(heart_pars.get("injectors"))
-
-    return [n_input, n_reservior, n_output]
-    
-    
-    
-def boot_doctor_train(name, doc_pars):
-    
-    name, path = dedicate_folder(name, os.path.join(os.getcwd(), "doctors"))
-    
-    # Copy settings
-    doc_pars.save(os.path.join(path, "doctor_params.json"))
-
-    heart_path = os.path.join(os.getcwd(), "hearts", doc_pars.get("dataset"))
-    heart_pars = Params(os.path.join(heart_path, "params.json"))
-    architecture = get_architecture(doc_pars, heart_pars)
-
-    doctor = Doctor(
-        name,
-        architecture,
-        doc_pars.get('beta'),
-        doc_pars.get('washout'),
-        [
-            doc_pars.get('w_in_scale'),
-            doc_pars.get('w_in_mu'),
-            doc_pars.get('w_min'),
-            doc_pars.get('w_max')
-        ],
-        doc_pars.get('spectral_radius'),
-        doc_pars.get('d'),
-        path,
-        doc_pars.get('log_neurons'),
-        [   
-            heart_pars.get('min_Vm'),
-            heart_pars.get('max_Vm')
-        ],
-        [
-            heart_pars.get('min_action'),
-            heart_pars.get('max_action')
-        ],
-        doc_pars,
-        heart_pars,
-        heart_pars.get('sampling_frequency')
-    )
-
-    doctor.train(
-        load_experiment_generator(
-            doc_pars.get('dataset'), 
-            os.path.join(os.getcwd(), 'hearts')
-        )
-    )
-
-    ys, yhats = doctor.test_train_data(
-        load_experiment_generator(
-            doc_pars.get('dataset'), 
-            os.path.join(os.getcwd(), 'hearts')
-        ),
-        cores=1
-    )
-
-    delta = np.mean((yhats - ys) * (yhats - ys), axis=0)
-    variances = np.var(ys, axis=0)
-    NMSE = delta / variances
-    NRMSE = np.sqrt(NMSE)
-    NRMSE = np.mean(NRMSE)
-
-    print(f"NRMSE: {NRMSE}")
-
-    np.save("./trash/ys.npy", ys)
-    np.save("./trash/yhats.npy", yhats)
-
-
-
-if __name__ == "__main__":
-    
-    boot_doctor_train("peregrine_boi", Params("./doctor_params.json"))
 
 
     

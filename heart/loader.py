@@ -48,6 +48,20 @@ def get_cores_and_batch(path):
 
     return cores
 
+
+def load_experiment_core(name, path, core, n_files):
+    ptd = join(path, name, 'data')
+    
+    actions_batch = np.load(join(ptd, f"actions_{core}_{0}.npy"))
+    states_batch = np.load(join(ptd, f"states_{core}_{0}.npy"))
+    for n_file in range(1, n_files + 1):
+        actions = np.load(join(ptd, f"actions_{core}_{n_file}.npy"))
+        actions_batch = np.concatenate((actions_batch, actions), axis=0)
+        states = np.load(join(ptd, f"states_{core}_{n_file}.npy"))
+        states_batch = np.concatenate((states_batch, states), axis=0)
+
+    return (states_batch, actions_batch)
+
 def load_experiment_generator(name, path):
 
     ptd = join(path, name, 'data')
