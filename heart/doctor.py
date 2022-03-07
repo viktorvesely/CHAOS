@@ -197,7 +197,6 @@ class Doctor:
 
                 u_now = states[i]
                 y = actions[i]
-
                 
                 u_future = states[i + self.d]
 
@@ -245,11 +244,11 @@ class Doctor:
 
         np.save(os.path.join(p, f"w_in_{core}.npy"), self.w_in)
         sp.save_npz(os.path.join(p, f"w_{core}.npz"), self.w)
-        np.save(os.path.join(p, f"w_out.npy"), self.w_out)
+        np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
         
         if self.log_neurons:
             np.save(
-                os.path.join(p, "neurons.npy"),
+                os.path.join(p, f"neurons_{core}.npy"),
                 np.array(self.debug_neurons)
             )
         

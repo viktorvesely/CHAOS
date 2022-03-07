@@ -6,12 +6,10 @@ def f(x):
     return x
 
 def multi_f(start):
-    with Pool(2) as pool:
+    with ThreadPool(2) as pool:
         results = pool.map(f, [i for i in range(start, start + 2)])
     return results
     
-
-
 if __name__ == '__main__':
 
     start = time.perf_counter() 

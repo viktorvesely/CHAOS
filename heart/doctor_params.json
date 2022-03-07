@@ -6,7 +6,6 @@
     "test_time": 0.8,
     "beta": 0.01,
     "n_reservior": 800,
-    "average_connection": 10,
     "washout": 20,
     "spectral_radius": 0.95,
     "log_neurons": 6,
