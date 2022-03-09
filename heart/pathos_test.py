@@ -6,7 +6,7 @@ def f(x):
     return x
 
 def multi_f(start):
-    with ThreadPool(2) as pool:
+    with Pool(2) as pool:
         results = pool.map(f, [i for i in range(start, start + 2)])
     return results
     

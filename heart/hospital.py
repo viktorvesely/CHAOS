@@ -1,6 +1,7 @@
 from multiprocessing.pool import Pool, ThreadPool
 import numpy as np
 import os
+import json
 
 import loader
 from loader import dedicate_folder, load_experiment_generator
@@ -15,6 +16,7 @@ def get_parser():
     parser.add_argument('-s', '--name', type=str, required=True)
     parser.add_argument('-hc', '--hypercores', type=int, default=0)
     parser.add_argument('-tc', '--traincores', type=int, default=1)
+    parser.add_argument('-r', '--runs', type=int, default=1)
 
     return parser
 
@@ -96,19 +98,30 @@ def test(doctor, save=True):
     
     return NRMSE
 
-def train_single_thread(name, path, doctor_pars):
-    
+def train_single_thread(name, path, doctor_pars, verbal=True, save=True):
+
     doctor = boot_doctor_train(name, path, doctor_pars)
 
     doctor.train(
         load_experiment_generator(
             doctor_pars.get('dataset'),
             os.path.join(os.getcwd(), 'hearts')
-        )
+        ),
+        save=save,
+        verbal=verbal
     )
 
     return test(doctor)
 
+def train_single_thread_pool_wrapper(args):
+    name, path, doctor_pars = args
+    NRMSE = train_single_thread(name, path, doctor_pars, verbal=False, save=False)
+    hyper_params = doctor_pars.get('__hyper_params')
+    print(f"{NRMSE} : {hyper_params}")
+    return (
+        NRMSE,
+        hyper_params
+    )
 
 def generator(heart_name, core, n_files):
     yield loader.load_experiment_core(
@@ -154,12 +167,134 @@ def train_multi_threaded(name, path, doctor_pars, n_cores):
     return test(doctor)
 
 
-def hyper_optimization(name, hyper_cores, train_cores):
-    pass
+def set_item(run, name, item):
+    import random
 
+    if isinstance(item, list):
+        run[name] = random.choice(item)
+    elif isinstance(item, dict):
+
+        run[name] = {}
+        for k, v in item.items():
+            run[name][k] = random.choice(v)
+    else:
+        raise TypeError(f"Incorrect value type got: {type(item)}, expected: list or dict")
+
+def generate_run(grid):
+    
+    run = {}
+
+    for name, value in grid.items():
+        
+        args = name.split(":")
+
+        if len(args) > 1:
+            continue
+        
+        set_item(run, name, value)
+
+    for name, value in grid.items():
+        
+        args = name.split(":")
+
+        if len(args) == 1:
+            continue
+
+        name = args[2]
+        condition = args[1].split("=")
+        variable = condition[0]
+        desired = condition[1]
+        
+        if run[variable] != desired:
+            continue
+
+        set_item(run, name, value)
+
+    return run
+
+    
+def generate_runs(n):
+
+    with open("./grid.json", "r") as f:
+        grid = json.load(f)
+    
+    runs = []
+    
+
+    while len(runs) < n:
+        run = generate_run(grid)
+        
+        if run in runs:
+            continue
+        
+        runs.append(run)
+    
+    return runs
+
+
+def update_params(run, pars):
+
+    for key, value in run.items():
+        
+        if key not in pars:
+            raise ValueError(f"Run contains key {key} which is not a valid parameter")    
+
+        if isinstance(value, dict):
+            update_params(value, pars[key])
+            continue
+        
+        pars[key] = value
+
+    pars["__hyper_params"] = run
+
+def hyper_optimization_single_thread_training(name, path, hyper_cores, original_pars, n_runs):
+    import copy
+    import time
+
+    runs = generate_runs(n_runs)
+    
+    pool_args = []
+
+    for run in runs:
+        doctor_pars_dict = copy.deepcopy(original_pars.params())
+        update_params(run, doctor_pars_dict)
+        doctor_pars = Params().from_dict(doctor_pars_dict)
+        pool_args.append([name, path, doctor_pars])
+    
+    start = time.perf_counter()
+    with Pool(hyper_cores) as pool:
+        results = pool.map(train_single_thread_pool_wrapper, pool_args)
+    end = time.perf_counter()
+
+    duration = end - start
+    print(f"Hyperoptimization finished in {duration}")
+    print(f"Time per run: {duration / n_runs}")
+
+    ranked = sorted(results, key=lambda result: result[0], reverse=True)
+
+    export = "nrmse,w_method,n_reservior,spectral_radius,w_in_scale,d,density,local_ratio\n"
+
+    for run in ranked:
+        NRMSE, hp = run
+        
+        export += f'{NRMSE},{hp["w_method"]},{hp["n_reservior"]},'  
+        export += f'{hp["spectral_radius"]},{hp["w_in_scale"]},{hp["d"]},'
+        
+        if "w_sparse" in hp:
+            export += str(hp["w_sparse"]["density"])
+        export += ","
+
+        if "w_local" in hp:
+            export += str(hp["w_local"]["local_ratio"])
+        export += "\n"    
+    
+
+    with open(os.path.join(path, 'results.csv'), "w", encoding='utf-8') as f:
+        f.write(export)
+    
+    
 
 if __name__ == '__main__':
-
 
     parser = get_parser()
     args = parser.parse_args()
@@ -169,18 +304,29 @@ if __name__ == '__main__':
         os.path.join(os.getcwd(), 'doctors')
     )
 
+    doctor_params = Params("./doctor_params.json")
+
     if args.hypercores > 0:
-        print(f"[{name}] Hyperoptimization using {args.hypercores * args.traincores} cores")
-        hyper_optimization(args.name, args.hypercores, args.traincores)
-    
-    if args.traincores > 1:
+
+        if args.traincores > 1:
+            print(f"""[{name}] Hyperoptimization for {args.runs} runs using {args.hypercores} core(s) for hyper-optimization and {args.traincores} cores for training""")
+            print("Not implemented right now .... exiting")
+        else:
+            print(f"""[{name}] Hyperoptimization for {args.runs} runs using {args.hypercores} core(s) for hyper-optimization and single-threaded training""")
+            hyper_optimization_single_thread_training(
+                args.name,
+                path,
+                args.hypercores,
+                doctor_params,
+                args.runs
+            )
+  
+    elif args.traincores > 1:
         print(f"[{name}] Multithreaded training using {args.traincores} cores")
-        doctor_params = Params("./doctor_params.json")
         NRMSE = train_multi_threaded(name, path, doctor_params, args.traincores)
         print(f"NRMSE: {NRMSE}")
     else:
         print(f"[{name}] Singlethreaded training")
-        doctor_params = Params("./doctor_params.json")
         NRMSE = train_single_thread(name, path, doctor_params)
         print(f"NRMSE: {NRMSE}")
     

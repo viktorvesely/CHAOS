@@ -1,0 +1,15 @@
+[
+    [
+        0.8795069506417192,
+        {
+            "w_method": "local",
+            "n_reservior": 1200,
+            "spectral_radius": 0.95,
+            "w_in_scale": 0.01,
+            "d": 6,
+            "w_local": {
+                "local_ratio": 0.15
+            }
+        }
+    ]
+]

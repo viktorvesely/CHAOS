@@ -1,12 +1,18 @@
 import json
+from tkinter import N
 
 class Params:
-    def __init__(self, path):
+    def __init__(self, path=None):
         self.__path = path
         self.__params = None
-        with open(path, 'r', encoding='utf-8') as f:
-            self.__params = json.load(f)
 
+        if path is not None:
+            with open(path, 'r', encoding='utf-8') as f:
+                self.__params = json.load(f)
+
+    def from_dict(self, pars):
+        self.__params = pars
+        return self
     
     def get(self, name):
         if name not in self.__params:
@@ -23,6 +29,7 @@ class Params:
         
         self.__params[name] = value
     
+
     def save(self, path):
 
         with open(path, "w") as f:

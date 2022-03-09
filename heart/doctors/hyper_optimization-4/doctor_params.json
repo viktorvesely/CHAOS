@@ -1,0 +1,8 @@
+{
+    "dataset": "peregrine_big",
+    "reference_signal": "reference_signal",
+    "reference_loop_start": 0,
+    "reference_loop_end": 40,
+    "test_time": 0.8,
+    "beta": 0.01,
+    "n_reservior": 
