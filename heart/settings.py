@@ -1,5 +1,4 @@
 import json
-from tkinter import N
 
 class Params:
     def __init__(self, path=None):

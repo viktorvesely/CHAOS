@@ -276,7 +276,7 @@ class Doctor:
         return result
         
     def construct_architecture(self):
-        
+
         w_in = np.random.normal(
             self.w_in_mu,
             self.w_in_scale,

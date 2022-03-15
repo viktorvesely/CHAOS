@@ -295,6 +295,7 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
     
 
 if __name__ == '__main__':
+    import time
 
     parser = get_parser()
     args = parser.parse_args()
@@ -323,12 +324,19 @@ if __name__ == '__main__':
   
     elif args.traincores > 1:
         print(f"[{name}] Multithreaded training using {args.traincores} cores")
+        start = time.perf_counter()
         NRMSE = train_multi_threaded(name, path, doctor_params, args.traincores)
+        end = time.perf_counter()
         print(f"NRMSE: {NRMSE}")
+        print(f"Multithreaded training took {end - start}")
+
     else:
         print(f"[{name}] Singlethreaded training")
+        start = time.perf_counter()
         NRMSE = train_single_thread(name, path, doctor_params)
+        end = time.perf_counter()
         print(f"NRMSE: {NRMSE}")
+        print(f"Singlethreaded training took {end - start}")
     
 
     

@@ -1,0 +1,38 @@
+{
+    "dataset": "peregrine_big",
+    "reference_signal": "reference_signal",
+    "reference_loop_start": 0,
+    "reference_loop_end": 40,
+    "test_time": 0.8,
+    "beta": 0.01,
+    "n_reservior": 1100,
+    "washout": 20,
+    "spectral_radius": 0.05,
+    "log_neurons": 6,
+    "w_in_scale": 0.09,
+    "w_in_mu": 0,
+    "w_min": -1,
+    "w_max": 1,
+    "d": 6,
+    "w_method": "local",
+    "kahan": false,
+    "w_local": {
+        "local_ratio": 0.7,
+        "__hyper_params": {
+            "local_ratio": 0.7
+        }
+    },
+    "w_sparse": {
+        "density": 0.15
+    },
+    "__hyper_params": {
+        "w_method": "local",
+        "n_reservior": 1100,
+        "spectral_radius": 0.05,
+        "w_in_scale": 0.09,
+        "d": 6,
+        "w_local": {
+            "local_ratio": 0.7
+        }
+    }
+}
