@@ -252,7 +252,7 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
     import time
 
     runs = generate_runs(n_runs)
-    
+
     pool_args = []
 
     for run in runs:
@@ -261,6 +261,8 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
         doctor_pars = Params().from_dict(doctor_pars_dict)
         pool_args.append([name, path, doctor_pars])
     
+    print("Runs generated")
+
     start = time.perf_counter()
     with Pool(hyper_cores) as pool:
         results = pool.map(train_single_thread_pool_wrapper, pool_args)

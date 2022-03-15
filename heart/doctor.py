@@ -283,6 +283,7 @@ class Doctor:
             (self.n_reservior, self.n_input + 1)
         )
 
+        print(f"constructing network {time.asctime()}")
         w = get_w(self.n_reservior, self.pars)    
 
         w_out = np.random.normal(
