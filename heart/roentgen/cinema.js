@@ -26,15 +26,19 @@ var options = {
     },
     showK_o: false,
     showRho: false,
+    showInjectors: false,
+    showDetectors: false,
     speed: 1
 }
 
 gui.add(options, "reset");
 gui.add(options, "pause");
 gui.add(options, "step");
+gui.add(options, "speed").min(0).max(2).step(0.01);
 gui.add(options, "showK_o");
 gui.add(options, "showRho");
-gui.add(options, "speed").min(0).max(2).step(0.01);
+gui.add(options, "showInjectors");
+gui.add(options, "showDetectors");
 
 function rescale() {
     let x, y;
@@ -53,7 +57,9 @@ function rescale() {
 }
 
 function time() {
-    text.innerText = (frameId * dt).toFixed(5).toString();
+    t = frameId * dt;
+    d = Math.floor(t / fs);
+    text.innerText = `d: ${d} \n t: ${t.toFixed(5)}`;
 }
 
 function init() {
@@ -97,11 +103,50 @@ function draw() {
         }
     }
 
+    if (options.showInjectors) {
+        injectors.forEach(injector => {
+            let x, y;
+            
+            x = injector[1];
+            y = injector[0];
+
+            ctx.beginPath();
+            ctx.fillStyle ="rgb(30, 232, 229)";   
+            ctx.rect(x * tileW, y * tileH, tileW, tileH);
+            ctx.fill();
+            
+        });
+    }
+
+    if (options.showDetectors) {
+        detectors.forEach(detector => {
+            let x, y;
+            
+            x = detector[1];
+            y = detector[0];
+
+            ctx.beginPath();
+            ctx.fillStyle ="rgb(245, 126, 66)";   
+            ctx.rect(x * tileW, y * tileH, tileW, tileH);
+            ctx.fill();
+            
+        });
+    }
+
     time();
     
     if (!paused) frameId += options.speed;
     requestAnimationFrame(draw);
 }
+
+
+window.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft") {
+        frameId--;
+    } else if (e.key === "ArrowRight") {
+        frameId++;
+    }
+});
 
 rescale();
 init();

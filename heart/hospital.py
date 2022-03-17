@@ -17,21 +17,9 @@ def get_parser():
     parser.add_argument('-hc', '--hypercores', type=int, default=0)
     parser.add_argument('-tc', '--traincores', type=int, default=1)
     parser.add_argument('-r', '--runs', type=int, default=1)
+    parser.add_argument('-p', '--parts', type=int, default=-1)
 
-    return parser
-
-
-def get_architecture(pars, heart_pars):
-
-    state_size = len(heart_pars.get("detectors"))
-    n_input = 2 * state_size
-
-    n_reservior = pars.get("n_reservior")
-    
-    n_output = len(heart_pars.get("injectors"))
-
-    return [n_input, n_reservior, n_output]
-    
+    return parser  
 
 def get_heart_path(doc_pars):
     return os.path.join(os.getcwd(), "hearts", doc_pars.get("dataset"))
@@ -42,20 +30,11 @@ def boot_doctor_train(name, path, doc_pars):
     doc_pars.save(os.path.join(path, "doctor_params.json"))
 
     heart_pars = Params(os.path.join(get_heart_path(doc_pars), "params.json"))
-    architecture = get_architecture(doc_pars, heart_pars)
 
     doctor = Doctor(
         name,
-        architecture,
         doc_pars.get('beta'),
         doc_pars.get('washout'),
-        [
-            doc_pars.get('w_in_scale'),
-            doc_pars.get('w_in_mu'),
-            doc_pars.get('w_min'),
-            doc_pars.get('w_max')
-        ],
-        doc_pars.get('spectral_radius'),
         doc_pars.get('d'),
         path,
         doc_pars.get('log_neurons'),
@@ -98,7 +77,7 @@ def test(doctor, save=True):
     
     return NRMSE
 
-def train_single_thread(name, path, doctor_pars, verbal=True, save=True):
+def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-1):
 
     doctor = boot_doctor_train(name, path, doctor_pars)
 
@@ -108,7 +87,8 @@ def train_single_thread(name, path, doctor_pars, verbal=True, save=True):
             os.path.join(os.getcwd(), 'hearts')
         ),
         save=save,
-        verbal=verbal
+        verbal=verbal,
+        parts=parts
     )
 
     return test(doctor)
@@ -309,6 +289,7 @@ if __name__ == '__main__':
 
     doctor_params = Params("./doctor_params.json")
 
+
     if args.hypercores > 0:
 
         if args.traincores > 1:
@@ -335,7 +316,7 @@ if __name__ == '__main__':
     else:
         print(f"[{name}] Singlethreaded training")
         start = time.perf_counter()
-        NRMSE = train_single_thread(name, path, doctor_params)
+        NRMSE = train_single_thread(name, path, doctor_params, parts=args.parts)
         end = time.perf_counter()
         print(f"NRMSE: {NRMSE}")
         print(f"Singlethreaded training took {end - start}")

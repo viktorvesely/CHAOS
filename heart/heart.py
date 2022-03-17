@@ -392,7 +392,13 @@ def solve(
 
     if videoOut:
         with open("./roentgen/video.js", 'w') as fi:
-            jString = "var data = {}; var dt = {};".format(json.dumps(grids), (dt * every_nth_frame))
+            jString = "var dt = {}; var detectors = {}; var injectors = {}; var fs = {}; var data = {}; ".format(
+                (dt * every_nth_frame),
+                json.dumps(params.get("detectors")),
+                json.dumps(params.get("injectors")),
+                params.get("sampling_frequency"),
+                json.dumps(grids)
+            )
             fi.write(jString)
         with open("./roentgen/g_k.js", 'w') as fi:
             g_k_normal = (k_o - min_k) / (max_k - min_k)

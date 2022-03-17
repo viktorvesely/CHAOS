@@ -4,8 +4,8 @@ import numpy as np
 
 from settings import Params
 
-def get_newest_name(name):
-    children = os.listdir("../hearts/")
+def get_newest_name(name, path_to_dir="../hearts/"):
+    children = os.listdir(path_to_dir)
         
     new_name = None
     suffix = -1
@@ -24,7 +24,7 @@ def get_newest_name(name):
             suffix = child_suffix
     
     if new_name is None:
-        raise ValueError(f"Heart wiht name {name} does not exist")
+        raise ValueError(f"Heart with name {name} does not exist")
 
     return new_name
 

@@ -6,7 +6,7 @@ import time
 import recorder
 from loader import dedicate_folder
 from dictator import Dictator
-from reservoir import get_w
+from reservoir import get_architecture
 
 
 class Doctor:
@@ -14,11 +14,8 @@ class Doctor:
     def __init__(
         self, 
         name,
-        architecture,
         beta, 
         washout,
-        w_params,
-        spectral_radius,
         d,
         path,
         log_neurons,
@@ -26,20 +23,19 @@ class Doctor:
         y_bounds,
         pars,
         heart_pars,
-        sampling_frequency,
-        seed=None
-    ):
+        sampling_frequency
+    ):       
 
-        self.name = name        
-        self.n_input, self.n_reservior, self.n_output = architecture
-        self.n_readouts = self.n_input + self.n_reservior + 1
+        self.w_in, self.w, self.w_out = get_architecture(pars, heart_pars)
+        self.n_input = self.w_in.shape[1]
+        self.n_reservior = self.w.shape[0]
+        self.n_output, self.n_readouts = self.w_out.shape
 
+        self.name = name 
         self.beta = beta
         self.washout_period = washout
-        self.seed = seed
         self.u_bounds = u_bounds
         self.y_bounds = y_bounds
-        self.spectral_radius = spectral_radius
         self.d = d
         self.path = path
         self.pars = pars
@@ -52,10 +48,7 @@ class Doctor:
         self.indicies = np.random.choice(self.n_reservior, size=log_neurons, replace=False)
         self.log_neurons = log_neurons > 0
         self.debug_neurons = []
-        self.w_in_scale, self.w_in_mu, self.w_min, self.w_max = w_params
 
-        np.random.seed(self.seed)
-        self.w_in, self.w, self.w_out = self.construct_architecture()
         self.x = self.initial_state()
         self.train_state = None
 
@@ -111,7 +104,7 @@ class Doctor:
         # Override the duration of the simulation
         original_t_start = self.heart_pars.get("t_start")
         original_t_end = self.heart_pars.get("t_end")
-        t_end = self.pars.get("test_time") * self.fs
+        t_end = self.pars.get("test_time")
         t_end *= 1000 # Convert to ms
         t_start = 0
         self.heart_pars.override("t_start", t_start)
@@ -172,7 +165,7 @@ class Doctor:
         
 
 
-    def train(self, generator, save=True, verbal=True):
+    def train(self, generator, save=True, verbal=True, parts=-1):
         
         if verbal:
             print("Training network")
@@ -180,6 +173,9 @@ class Doctor:
         core = 1
         for states, actions in generator:
             
+            if parts > 0 and (core - 1) >= parts:
+                break
+
             start = time.perf_counter()
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
@@ -242,7 +238,7 @@ class Doctor:
     def save_model(self, core=0):
         p = self.path
 
-        np.save(os.path.join(p, f"w_in_{core}.npy"), self.w_in)
+        sp.save_npz(os.path.join(p, f"w_in_{core}.npz"), self.w_in)
         sp.save_npz(os.path.join(p, f"w_{core}.npz"), self.w)
         np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
         
@@ -252,12 +248,12 @@ class Doctor:
                 np.array(self.debug_neurons)
             )
         
-    def load_model(self, core=""):
+    def load_model(self, core=0):
         p = self.path
 
-        self.w_in = np.load(os.path.join(p, "w_in.npy"))
-        self.w = sp.load_npz(os.path.join(p, "w.npz"))
-        self.w_out = np.load(os.path.join(p, "w_out.npy"))
+        self.w_in = sp.load_npz(os.path.join(p, f"w_in_{core}.npz"))
+        self.w = sp.load_npz(os.path.join(p, f"w_{core}.npz"))
+        self.w_out = np.load(os.path.join(p, f"w_out_{core}.npy"))
 
 
     def initial_state(self):
@@ -274,32 +270,13 @@ class Doctor:
         result[1 : vectorA.size + 1] = vectorA
         result[vectorA.size + 1:] = vectorB
         return result
-        
-    def construct_architecture(self):
-
-        w_in = np.random.normal(
-            self.w_in_mu,
-            self.w_in_scale,
-            (self.n_reservior, self.n_input + 1)
-        )
-
-        print(f"constructing network {time.asctime()}")
-        w = get_w(self.n_reservior, self.pars)    
-
-        w_out = np.random.normal(
-            0,
-            1,
-            (self.n_output, self.n_readouts)
-        )
-
-        return w_in, w, w_out  
 
     def __call__(self, u_now, u_future):
 
         u = self.fast_append_and_insert_one(u_now, u_future)
 
         self.x = np.tanh(
-            np.matmul(self.w_in, u) +
+            self.w_in.dot(u) +
             self.w.dot(self.x)
         )
 

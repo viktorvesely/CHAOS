@@ -1,39 +1,143 @@
 import numpy as np
 from scipy import sparse as sp
 
-def w_local(n, w_min, w_max, spectral_radius, settings):
-    local_ratio = settings["local_ratio"]
+
+
+def normal(params, size=None):
+    mu, scale = params
+    return np.random.normal(mu, scale, size=size)
+
+def get_neighbours(heart_pos, heart_shape, indicies, manhattan=1, passable="top"):
+    neighbours = []
+    h_i, h_j = heart_pos
+    h, w = heart_shape
     
-    n_local = round(n * local_ratio)
-    n_other = n - n_local
+    if passable == "top":
+        top_passable = True
+        bottom_passable = False
+    elif passable == "bottom":
+        top_passable = False
+        bottom_passable = True
+    else:
+        raise ValueError(f"Invalid passable parameter got '{passable}' expected 'top' or 'bottom'")
+
+    for di in range(-manhattan, manhattan + 1):
+        for dj in range(-manhattan, manhattan + 1):
+            distance = abs(di) + abs(dj)
+            if distance > manhattan:
+                continue
+                
+            ni = h_i + di
+            nj = h_j + dj
+
+            # No periodic boundaries from sides
+            if nj >= w or nj < 0:
+                continue
+
+            if top_passable and ni < h:
+                neighbours.append([indicies[ni, nj], distance])
+
+            if bottom_passable and ni >= 0:
+                ni = ni % h
+                neighbours.append([indicies[ni, nj], distance])
+            
+    return neighbours
+
+def heartlike(
+    pars,
+    heart_pars,
+    settings
+    ):
     
-    local = []
-    for i in range(n_local):
-        row = []
-        for z in range(n_local):
-            if abs(z - i) <= 2:
-                row.append(np.random.random() * (w_max - w_min) + w_min)
-            else:
-                row.append(0)
-        local.append(row)
+    heart_shape = (
+        heart_pars.get('gridy'),
+        heart_pars.get('gridx')
+    )
 
-    local = np.array(local)
+    heart_weights = settings["heart_weights"]
+    n_local = heart_shape[0] * heart_shape[1]
+    n_other = settings["n_other"]
+    n_reservoir = n_local + n_other
+    indicies = np.reshape(np.arange(n_local), heart_shape)
+    manhattan = settings["manhattan"]
+    detectors = heart_pars.get("detectors")
+    w_max = pars.get("w_max")
+    w_min = pars.get("w_min")
+    spectral_radius = pars.get("spectral_radius")
 
-    other = np.random.random(size=(n_other, n_other)) * (w_max - w_min) + w_min
- 
-    M1 = np.zeros((n_local, n_other))
-    M2 = np.zeros((n_other, n_local))
+    # ---------------------- W ------------------------------
+    heart = np.zeros((n_local, n_local))
+    for i in range(heart_shape[0]):
+        for j in range(heart_shape[1]):
+            neighbours = get_neighbours(
+                [i, j],
+                heart_shape,
+                indicies,
+                manhattan=manhattan,
+                passable="top"
+            )
+            src = indicies[i, j]
+            for neighbour, distance in neighbours:
+                heart[src, neighbour] = normal(heart_weights) * (1 / (distance + 1))
+    
+    if n_other > 0:
+        other = np.random.random(size=(n_other, n_other)) * (w_max - w_min) + w_min
+    
+        M1 = np.zeros((n_local, n_other))
+        M2 = np.zeros((n_other, n_local))
 
-    w = np.block([
-        [local, M1],
-        [M2, other]
-    ])    
+        w = np.block([
+            [heart, M1],
+            [M2, other]
+        ])
+    else:
+        w = heart
 
     sr = calc_sr(w)
 
     w = (w / sr) * spectral_radius
 
-    return sp.bsr_array(w)
+    # ---------------------- W_in-----------------------------
+    n_detectors = len(detectors)
+    n_input = n_detectors * 2 + 1
+    w_in = np.zeros((n_reservoir, n_input))
+    w_in_weights = settings["w_in"]
+    w_in_other_weights = pars.get("w_in")
+    n_other_in = n_detectors
+
+    # Setup connection to heart
+    for u_index, detector in enumerate(detectors):
+        neighbours = get_neighbours(
+            detector,
+            heart_shape,
+            indicies,
+            manhattan=manhattan,
+            passable="bottom"
+        )
+
+        for neighbour, distance in neighbours:
+            w_in[neighbour, u_index] = normal(w_in_weights) * (1 / (distance + 1))
+
+    # Setup connection to reservoir      
+    for u_offset in range(n_other_in):
+        u_index = n_detectors + u_offset
+        connections_to_reservoir = normal(w_in_other_weights, size=n_other)
+        w_in[n_local:,u_index] = connections_to_reservoir
+    
+    # Setup bias
+    w_in_bias = pars.get("w_in_bias")
+    w_in[:,-1] = normal(w_in_bias, size=n_reservoir)
+
+    # ---------------------- W_out----------------------------
+    n_output = len(heart_pars.get("injectors"))
+    n_readouts = n_input + n_reservoir
+    w_out = np.random.normal(
+        0,
+        0.5,
+        (n_output, n_readouts)
+    )
+
+    return sp.bsr_array(w_in), sp.bsr_array(w), w_out
 
 def calc_sr(w):
     return np.max(
@@ -44,7 +148,13 @@ def calc_sr(w):
         )
     )
 
-def w_sparse(n, w_min, w_max, spectral_radius, settings):
+def sparse(pars, heart_pars, settings):
+    n = pars.get("n_reservior")
+    w_max = pars.get("w_max")
+    w_min = pars.get("w_min")
+    spectral_radius = pars.get("spectral_radius")
+
+    # ---------------------- W ------------------------------
     w = sp.rand(
             n,
             n, 
@@ -57,37 +167,75 @@ def w_sparse(n, w_min, w_max, spectral_radius, settings):
     sr = calc_sr(w.toarray())
 
     w = (w / sr) * spectral_radius
+    # ---------------------- W_in -----------------------------
 
-    return w
+    n_detectors = len(heart_pars.get("detectors"))
+    n_input = n_detectors * 2 + 1
+    w_in_weights = pars.get("w_in")
+    w_in = normal(w_in_weights, size=(n, n_input))
 
-def get_w(n_reservoir, pars):
+    # ---------------------- W_out ----------------------------
+    n_output = len(heart_pars.get("injectors"))
+    n_readouts = n_input + n
+    w_out = np.random.normal(
+        0,
+        0.5,
+        (n_output, n_readouts)
+    )
+
+    return w_in, w, w_out
+
+def get_architecture(pars, heart_pars):
     
     method = pars.get("w_method")
     settings = pars.get(f"w_{method}")
-    w_min = pars.get("w_min")
-    w_max = pars.get("w_max")
-    spectral_radius = pars.get("spectral_radius")
 
     if method == "local":
-        w = w_local(n_reservoir, w_min, w_max, spectral_radius, settings)
+        w_in, w, w_out = heartlike(
+            pars,
+            heart_pars,
+            settings
+        )
     
     elif method == "sparse":
-        w = w_sparse(n_reservoir, w_min, w_max, spectral_radius, settings)
+        w_in, w, w_out = sparse(
+            pars,
+            heart_pars,
+            settings
+        )
+    else:
+        raise ValueError(f"Unknown method: '{method}'")
 
-    return w
-
+    return w_in, w, w_out
 
 
 if __name__ == "__main__":
     
     from settings import Params
-    import os
 
+    # heart_shape = (4, 3)
+    # indicies = np.arange(heart_shape[0] * heart_shape[1]).reshape(heart_shape)
+    # ns = get_neighbours((1, 0), heart_shape, indicies, manhattan=2)
+
+    heart_pars = Params("./params.json")
     pars = Params("./doctor_params.json")
+    heart_pars.override("gridx", 3)
+    heart_pars.override("gridy", 4)
+    heart_pars.override("detectors", [[0, 0], [1, 0]])
+
+    w_in, w, w_out = heartlike(
+        pars,
+        heart_pars,
+        {
+            "heart_weights": [0.9, 0.2],
+            "w_in": [0.1, 0.05],
+            "n_other": 0,
+            "manhattan": 1
+        }
+    )
     np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-    w = get_w(pars.get("n_reservior"), pars)
     s = np.array_repr(
-            w.toarray()
+            w.toarray()[:,:]
     ).replace(
         "\n",
         ""
@@ -110,10 +258,4 @@ if __name__ == "__main__":
 
     s = f" {s}"
 
-    print(calc_sr(w.toarray()))
-    
-    sp.save_npz(os.path.join(os.getcwd(), "trash", "w.npz"), w)
-    
-    w = sp.load_npz(os.path.join(os.getcwd(), "trash", "w.npz"))
-
-    print(calc_sr(w.toarray()))
+    print(s)
