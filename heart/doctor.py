@@ -45,7 +45,7 @@ class Doctor:
         self.dictator = Dictator(self.pars, self.heart_pars)
         self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
-        self.indicies = np.random.choice(self.n_reservior, size=log_neurons, replace=False)
+        self.indicies = np.random.choice(np.arange(320, self.n_reservior), size=log_neurons, replace=False)
         self.log_neurons = log_neurons > 0
         self.debug_neurons = []
 

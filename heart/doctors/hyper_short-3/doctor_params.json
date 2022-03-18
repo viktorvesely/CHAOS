@@ -9,17 +9,32 @@
     "washout": 20,
     "spectral_radius": 0.98,
     "log_neurons": 7,
-    "w_in": [0, 0.3],
-    "w_in_bias": [0, 0.05],
+    "w_in": [
+        0,
+        0.3
+    ],
+    "w_in_bias": [
+        0,
+        0.05
+    ],
     "w_min": -0.8,
     "w_max": 0.8,
-    "d": 6,
+    "d": 3,
     "w_method": "local",
     "kahan": false,
-    "local_heart_weights": [0.9, 0.1],
+    "local_heart_weights": [
+        0.9,
+        0.1
+    ],
     "local_manhattan": 2,
     "local_n_other": 120,
     "local_other_density": 0.3,
-    "local_heart_w_in": [0.18, 0.08],
-    "sparse_desnity": 0.1
+    "local_heart_w_in": [
+        0.18,
+        0.08
+    ],
+    "sparse_desnity": 0.1,
+    "__hyper_params": {
+        "d": 3
+    }
 }

@@ -45,8 +45,7 @@ def get_neighbours(heart_pos, heart_shape, indicies, manhattan=1, passable="top"
 
 def heartlike(
     pars,
-    heart_pars,
-    settings
+    heart_pars
     ):
     
     heart_shape = (
@@ -54,12 +53,12 @@ def heartlike(
         heart_pars.get('gridx')
     )
 
-    heart_weights = settings["heart_weights"]
+    heart_weights = pars.get("local_heart_weights")
     n_local = heart_shape[0] * heart_shape[1]
-    n_other = settings["n_other"]
+    n_other = pars.get("local_n_other")
     n_reservoir = n_local + n_other
     indicies = np.reshape(np.arange(n_local), heart_shape)
-    manhattan = settings["manhattan"]
+    manhattan = pars.get("local_manhattan")
     detectors = heart_pars.get("detectors")
     w_max = pars.get("w_max")
     w_min = pars.get("w_min")
@@ -81,14 +80,24 @@ def heartlike(
                 heart[src, neighbour] = normal(heart_weights) * (1 / (distance + 1))
     
     if n_other > 0:
-        other = np.random.random(size=(n_other, n_other)) * (w_max - w_min) + w_min
+        other = sp.rand(
+            n_other,
+            n_other, 
+            density=pars.get("local_other_density"),
+            format="bsr"
+        ) *  (w_max - w_min)
     
-        M1 = np.zeros((n_local, n_other))
-        M2 = np.zeros((n_other, n_local))
+        other.data = other.data + w_min
+    
+        # From other to heart
+        M1 = np.zeros((n_local, n_other)) # np.random.random((n_local, n_other)) * (w_max - w_min) + w_min
+
+        # From heart to other
+        M2 = np.random.random((n_other, n_local)) * (w_max - w_min) + w_min # np.zeros((n_other, n_local))  
 
         w = np.block([
             [heart, M1],
-            [M2, other]
+            [M2, other.toarray()]
         ])
     else:
         w = heart
@@ -101,7 +110,7 @@ def heartlike(
     n_detectors = len(detectors)
     n_input = n_detectors * 2 + 1
     w_in = np.zeros((n_reservoir, n_input))
-    w_in_weights = settings["w_in"]
+    w_in_weights = pars.get("local_heart_w_in")
     w_in_other_weights = pars.get("w_in")
     n_other_in = n_detectors
 
@@ -148,7 +157,7 @@ def calc_sr(w):
         )
     )
 
-def sparse(pars, heart_pars, settings):
+def sparse(pars, heart_pars):
     n = pars.get("n_reservior")
     w_max = pars.get("w_max")
     w_min = pars.get("w_min")
@@ -158,7 +167,7 @@ def sparse(pars, heart_pars, settings):
     w = sp.rand(
             n,
             n, 
-            density=settings["density"],
+            density=pars.get("sparse_density"),
             format="bsr"
         ) *  (w_max - w_min)
     
@@ -188,20 +197,17 @@ def sparse(pars, heart_pars, settings):
 def get_architecture(pars, heart_pars):
     
     method = pars.get("w_method")
-    settings = pars.get(f"w_{method}")
 
     if method == "local":
         w_in, w, w_out = heartlike(
             pars,
-            heart_pars,
-            settings
+            heart_pars
         )
     
     elif method == "sparse":
         w_in, w, w_out = sparse(
             pars,
-            heart_pars,
-            settings
+            heart_pars
         )
     else:
         raise ValueError(f"Unknown method: '{method}'")

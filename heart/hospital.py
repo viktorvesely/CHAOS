@@ -16,7 +16,6 @@ def get_parser():
     parser.add_argument('-s', '--name', type=str, required=True)
     parser.add_argument('-hc', '--hypercores', type=int, default=0)
     parser.add_argument('-tc', '--traincores', type=int, default=1)
-    parser.add_argument('-r', '--runs', type=int, default=1)
     parser.add_argument('-p', '--parts', type=int, default=-1)
 
     return parser  
@@ -94,8 +93,16 @@ def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-
     return test(doctor)
 
 def train_single_thread_pool_wrapper(args):
-    name, path, doctor_pars = args
-    NRMSE = train_single_thread(name, path, doctor_pars, verbal=False, save=False)
+    name, path, doctor_pars, parts = args
+    NRMSE = train_single_thread(
+        name,
+        path,
+        doctor_pars,
+        verbal=False,
+        save=False,
+        parts=parts
+    )
+
     hyper_params = doctor_pars.get('__hyper_params')
     print(f"{NRMSE} : {hyper_params}")
     return (
@@ -211,6 +218,29 @@ def generate_runs(n):
     
     return runs
 
+def iterate_param(remaining_grid_keys, grid):
+    
+    if len(remaining_grid_keys) == 0:
+        yield {}
+        return
+
+    current = remaining_grid_keys[:1][0]
+    remaining = remaining_grid_keys[1:]
+    values = grid[current]
+
+    for value in values:
+        for shallow_run in iterate_param(remaining, grid):
+            run = {}
+            run[current] = value
+            run.update(shallow_run)
+            yield run
+
+def generate_grid(grid):
+
+    keys = list(grid.keys())
+    runs = [ run for run in iterate_param(keys, grid) ]
+
+    return runs
 
 def update_params(run, pars):
 
@@ -225,13 +255,15 @@ def update_params(run, pars):
         
         pars[key] = value
 
-    pars["__hyper_params"] = run
 
-def hyper_optimization_single_thread_training(name, path, hyper_cores, original_pars, n_runs):
+def hyper_optimization_single_thread_training(name, path, hyper_cores, original_pars, parts=-1):
     import copy
     import time
 
-    runs = generate_runs(n_runs)
+    with open("./grid.json", "r") as f:
+        grid = json.load(f)
+
+    runs = generate_grid(grid)
 
     pool_args = []
 
@@ -239,9 +271,11 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
         doctor_pars_dict = copy.deepcopy(original_pars.params())
         update_params(run, doctor_pars_dict)
         doctor_pars = Params().from_dict(doctor_pars_dict)
-        pool_args.append([name, path, doctor_pars])
-    
-    print("Runs generated")
+        doctor_pars.params()["__hyper_params"] = run
+        pool_args.append([name, path, doctor_pars, parts])
+    n_runs = len(runs)
+
+    print(f"{n_runs} run(s) generated!")
 
     start = time.perf_counter()
     with Pool(hyper_cores) as pool:
@@ -252,22 +286,29 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
     print(f"Hyperoptimization finished in {duration}")
     print(f"Time per run: {duration / n_runs}")
 
-    ranked = sorted(results, key=lambda result: result[0], reverse=True)
+    ranked = sorted(results, key=lambda result: result[0])
 
-    export = "nrmse,w_method,n_reservior,spectral_radius,w_in_scale,d,density,local_ratio\n"
+    keys = grid.keys()
+    export = "nrmse"
+
+    for key in keys:
+        value = ranked[0][1][key]
+        if isinstance(value, list) and len(value) == 2:
+            export += f",{key}_mu,{key}_scale"
+        else:
+            export += f",{key}"
+    export += "\n"
 
     for run in ranked:
         NRMSE, hp = run
-        
-        export += f'{NRMSE},{hp["w_method"]},{hp["n_reservior"]},'  
-        export += f'{hp["spectral_radius"]},{hp["w_in_scale"]},{hp["d"]},'
-        
-        if "w_sparse" in hp:
-            export += str(hp["w_sparse"]["density"])
-        export += ","
+        export += str(NRMSE)
+        for key in keys:
+            value = hp[key]
+            if isinstance(value, list) and len(value) == 2:
+                export += f",{value[0]},{value[1]}"
+            else:
+                export += f",{value}"
 
-        if "w_local" in hp:
-            export += str(hp["w_local"]["local_ratio"])
         export += "\n"    
     
 
@@ -293,16 +334,16 @@ if __name__ == '__main__':
     if args.hypercores > 0:
 
         if args.traincores > 1:
-            print(f"""[{name}] Hyperoptimization for {args.runs} runs using {args.hypercores} core(s) for hyper-optimization and {args.traincores} cores for training""")
+            print(f"""[{name}] Hyperoptimization using {args.hypercores} core(s) for hyper-optimization and {args.traincores} cores for training""")
             print("Not implemented right now .... exiting")
         else:
-            print(f"""[{name}] Hyperoptimization for {args.runs} runs using {args.hypercores} core(s) for hyper-optimization and single-threaded training""")
+            print(f"""[{name}] Hyperoptimization runs using {args.hypercores} core(s) for hyper-optimization and single-threaded training""")
             hyper_optimization_single_thread_training(
                 args.name,
                 path,
                 args.hypercores,
                 doctor_params,
-                args.runs
+                parts=args.parts
             )
   
     elif args.traincores > 1:
