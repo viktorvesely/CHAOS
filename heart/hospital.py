@@ -104,7 +104,6 @@ def train_single_thread_pool_wrapper(args):
     )
 
     hyper_params = doctor_pars.get('__hyper_params')
-    print(f"{NRMSE} : {hyper_params}")
     return (
         NRMSE,
         hyper_params
@@ -301,6 +300,7 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
 
     for run in ranked:
         NRMSE, hp = run
+        print(f"{NRMSE} : {hp}")
         export += str(NRMSE)
         for key in keys:
             value = hp[key]

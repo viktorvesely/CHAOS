@@ -5,5 +5,6 @@
 #SBATCH --job-name=hyper_optimization
 #SBATCH --mem=8GB
 #SBATCH --partition=short
-module load Biopython/1.78-foss-2020a-Python-3.8.2
-python3 hospital.py --name hyper_peregrine --hypercores 3 --runs 3 
+module load Python/3.9.5-GCCcore-10.3.0
+source scipy18/bin/activate
+python3 hospital.py --name hyper_tuning --parts 1 --hypercores 10
