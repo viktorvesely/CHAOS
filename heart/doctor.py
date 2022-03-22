@@ -26,7 +26,7 @@ class Doctor:
         sampling_frequency
     ):       
 
-        self.w_in, self.w, self.w_out = get_architecture(pars, heart_pars)
+        self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
         self.n_input = self.w_in.shape[1]
         self.n_reservior = self.w.shape[0]
         self.n_output, self.n_readouts = self.w_out.shape
@@ -275,7 +275,7 @@ class Doctor:
 
         u = self.fast_append_and_insert_one(u_now, u_future)
 
-        self.x = np.tanh(
+        self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
             self.w_in.dot(u) +
             self.w.dot(self.x)
         )

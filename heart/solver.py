@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # From https://github.com/cpcloud/PyTDMA
 def tdma(A, b):
     """Tridiagonal matrix solver.

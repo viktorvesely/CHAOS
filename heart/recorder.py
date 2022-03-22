@@ -99,7 +99,7 @@ class Recorder:
             print(arg)
 
     def get_state(self, V):
-        return V[self.detectors]
+        return V.flatten()
 
     def save(self):
         np.save(

@@ -5,6 +5,5 @@
 #SBATCH --job-name=heart_job
 #SBATCH --mem=8GB
 #SBATCH --partition=regular
-module load Python/3.9.5-GCCcore-10.3.0
-source scipy18/bin/activate
+Biopython/1.78-foss-2020a-Python-3.8.2
 python3 recorder.py --name peregrine --cores 10

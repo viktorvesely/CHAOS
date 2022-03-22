@@ -63,6 +63,7 @@ def heartlike(
     w_max = pars.get("w_max")
     w_min = pars.get("w_min")
     spectral_radius = pars.get("spectral_radius")
+    w_heart_to_other = pars.get("local_heart_to_other_weights")
 
     # ---------------------- W ------------------------------
     heart = np.zeros((n_local, n_local))
@@ -93,7 +94,7 @@ def heartlike(
         M1 = np.zeros((n_local, n_other)) # np.random.random((n_local, n_other)) * (w_max - w_min) + w_min
 
         # From heart to other
-        M2 = np.random.random((n_other, n_local)) * (w_max - w_min) + w_min # np.zeros((n_other, n_local))  
+        M2 = normal(w_heart_to_other, size=(n_other, n_local)) # np.zeros((n_other, n_local))  
 
         w = np.block([
             [heart, M1],
@@ -146,7 +147,17 @@ def heartlike(
         (n_output, n_readouts)
     )
 
-    return sp.bsr_array(w_in), sp.bsr_array(w), w_out
+    # ---------------------- Leaky mask------------------------
+
+    leaky_mask = np.zeros((n_reservoir, 1))
+    local_min = pars.get("local_heart_leak_alpha_min")
+    local_max = pars.get("local_heart_leak_alpha_max")
+    other_min = pars.get("leaky_alpha_min")
+    other_max = pars.get("leaky_alpha_max")
+    leaky_mask[:n_local,:] = np.random.random((n_local, 1)) * (local_max - local_min) + local_min
+    leaky_mask[n_local:,:] = np.random.random((n_other, 1)) * (other_max - other_min) + other_min
+
+    return sp.bsr_array(w_in), sp.bsr_array(w), w_out, leaky_mask
 
 def calc_sr(w):
     return np.max(
@@ -192,27 +203,33 @@ def sparse(pars, heart_pars):
         (n_output, n_readouts)
     )
 
-    return w_in, w, w_out
+    # ---------------------- Leaky mask------------------------
+
+    leaky_alpha_min = pars.get("leaky_alpha_min")
+    leaky_alpha_max = pars.get("leaky_alpha_max")
+    leaky_mask = np.random.random((n, 1)) * (leaky_alpha_max - leaky_alpha_min) + leaky_alpha_min 
+
+    return w_in, w, w_out, leaky_mask
 
 def get_architecture(pars, heart_pars):
     
     method = pars.get("w_method")
 
     if method == "local":
-        w_in, w, w_out = heartlike(
+        w_in, w, w_out, leaky_mask = heartlike(
             pars,
             heart_pars
         )
     
     elif method == "sparse":
-        w_in, w, w_out = sparse(
+        w_in, w, w_out, leaky_mask = sparse(
             pars,
             heart_pars
         )
     else:
         raise ValueError(f"Unknown method: '{method}'")
 
-    return w_in, w, w_out
+    return w_in, w, w_out, leaky_mask
 
 
 if __name__ == "__main__":
