@@ -6,11 +6,11 @@
     "test_time": 0.8,
     "beta": 0.00001,
     "n_reservior": 700,
-    "washout": 20,
+    "washout": 40,
     "spectral_radius": 0.94,
-    "log_neurons": 7,
-    "w_in": [0, 0.2],
-    "w_in_bias": [0, 0.3],
+    "log_neurons": 10,
+    "w_in": [0, 0.08],
+    "w_in_bias": [0, 0.8],
     "w_min": -0.8,
     "w_max": 0.8,
     "d": 6,
@@ -26,6 +26,6 @@
     "local_heart_leak_alpha_max": 0.99,
     "local_n_other": 200,
     "local_other_density": 0.15,
-    "local_heart_w_in": [0.18, 0.08],
+    "local_heart_w_in": [0.08, 0.05],
     "sparse_density": 0.15
 }

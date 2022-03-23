@@ -45,7 +45,7 @@ class Doctor:
         self.dictator = Dictator(self.pars, self.heart_pars)
         self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
-        self.indicies = np.random.choice(np.arange(320, self.n_reservior), size=log_neurons, replace=False)
+        self.indicies = np.random.choice(np.arange(self.n_reservior), size=log_neurons, replace=False)
         self.log_neurons = log_neurons > 0
         self.debug_neurons = []
 
@@ -241,6 +241,7 @@ class Doctor:
         sp.save_npz(os.path.join(p, f"w_in_{core}.npz"), self.w_in)
         sp.save_npz(os.path.join(p, f"w_{core}.npz"), self.w)
         np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
+        np.save(os.path.join(p, f"leaky_mask_{core}.npy"), self.leaky_mask)
         
         if self.log_neurons:
             np.save(
@@ -254,6 +255,7 @@ class Doctor:
         self.w_in = sp.load_npz(os.path.join(p, f"w_in_{core}.npz"))
         self.w = sp.load_npz(os.path.join(p, f"w_{core}.npz"))
         self.w_out = np.load(os.path.join(p, f"w_out_{core}.npy"))
+        self.leaky_mask = np.load(os.path.join(p, f"leaky_mask_{core}.npy"))
 
 
     def initial_state(self):

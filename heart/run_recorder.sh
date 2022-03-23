@@ -5,5 +5,5 @@
 #SBATCH --job-name=heart_job
 #SBATCH --mem=8GB
 #SBATCH --partition=regular
-Biopython/1.78-foss-2020a-Python-3.8.2
+module add Biopython/1.78-foss-2020a-Python-3.8.2
 python3 recorder.py --name peregrine --cores 10

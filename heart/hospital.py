@@ -23,10 +23,10 @@ def get_parser():
 def get_heart_path(doc_pars):
     return os.path.join(os.getcwd(), "hearts", doc_pars.get("dataset"))
     
-def boot_doctor_train(name, path, doc_pars):
+def boot_doctor_train(name, path, doc_pars, core=0):
     
     # Copy settings
-    doc_pars.save(os.path.join(path, "doctor_params.json"))
+    doc_pars.save(os.path.join(path, f"doctor_params_{core}.json"))
 
     heart_pars = Params(os.path.join(get_heart_path(doc_pars), "params.json"))
 
@@ -76,9 +76,9 @@ def test(doctor, save=True):
     
     return NRMSE
 
-def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-1):
+def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-1, core=0):
 
-    doctor = boot_doctor_train(name, path, doctor_pars)
+    doctor = boot_doctor_train(name, path, doctor_pars, core=core)
 
     doctor.train(
         load_experiment_generator(
@@ -90,18 +90,21 @@ def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-
         parts=parts
     )
 
-    return test(doctor)
+    return test(doctor), doctor
 
 def train_single_thread_pool_wrapper(args):
-    name, path, doctor_pars, parts = args
-    NRMSE = train_single_thread(
+    name, path, doctor_pars, parts, core = args
+    NRMSE, doctor = train_single_thread(
         name,
         path,
         doctor_pars,
         verbal=False,
         save=False,
-        parts=parts
+        parts=parts,
+        core=core
     )
+
+    doctor.save_model(core=core)
 
     hyper_params = doctor_pars.get('__hyper_params')
     return (
@@ -266,12 +269,12 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
 
     pool_args = []
 
-    for run in runs:
+    for i, run in enumerate(runs):
         doctor_pars_dict = copy.deepcopy(original_pars.params())
         update_params(run, doctor_pars_dict)
         doctor_pars = Params().from_dict(doctor_pars_dict)
         doctor_pars.params()["__hyper_params"] = run
-        pool_args.append([name, path, doctor_pars, parts])
+        pool_args.append([name, path, doctor_pars, parts, i])
     n_runs = len(runs)
 
     print(f"{n_runs} run(s) generated!")
@@ -357,7 +360,7 @@ if __name__ == '__main__':
     else:
         print(f"[{name}] Singlethreaded training")
         start = time.perf_counter()
-        NRMSE = train_single_thread(name, path, doctor_params, parts=args.parts)
+        NRMSE, _ = train_single_thread(name, path, doctor_params, parts=args.parts)
         end = time.perf_counter()
         print(f"NRMSE: {NRMSE}")
         print(f"Singlethreaded training took {end - start}")
