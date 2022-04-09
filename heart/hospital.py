@@ -36,7 +36,6 @@ def boot_doctor_train(name, path, doc_pars, core=0):
         doc_pars.get('washout'),
         doc_pars.get('d'),
         path,
-        doc_pars.get('log_neurons'),
         [   
             heart_pars.get('min_Vm'),
             heart_pars.get('max_Vm')
@@ -295,8 +294,23 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
 
     for key in keys:
         value = ranked[0][1][key]
-        if isinstance(value, list) and len(value) == 2:
-            export += f",{key}_mu,{key}_scale"
+        if isinstance(value, list):
+            value = np.array(value).flatten()
+            
+            key_labels = f"{key}_labels"
+            labels_found = False
+            if key_labels in original_pars.params():
+                labels = original_pars.get(labels)
+                if value.size == len(labels):
+                    labels_found = True
+                    for label in labels:
+                        export += f",{label}"
+                else:
+                    print(f"Labels found in {key_labels} with size {len(labels)} are not matching the size of the sample with size {value.size}")
+
+            if not labels_found:
+                for i in range(value.size):
+                    export += f",{key}_{i}"
         else:
             export += f",{key}"
     export += "\n"
@@ -307,8 +321,11 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
         export += str(NRMSE)
         for key in keys:
             value = hp[key]
-            if isinstance(value, list) and len(value) == 2:
-                export += f",{value[0]},{value[1]}"
+            if isinstance(value, list):
+                value = np.array(value).flatten()
+            
+                for i in range(value.size):
+                    export += f",{value[i]}"
             else:
                 export += f",{value}"
 

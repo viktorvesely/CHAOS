@@ -7,6 +7,7 @@ import recorder
 from loader import dedicate_folder
 from dictator import Dictator
 from reservoir import get_architecture
+from nurse import Nurse
 
 
 class Doctor:
@@ -18,7 +19,6 @@ class Doctor:
         washout,
         d,
         path,
-        log_neurons,
         u_bounds,
         y_bounds,
         pars,
@@ -45,9 +45,6 @@ class Doctor:
         self.dictator = Dictator(self.pars, self.heart_pars)
         self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
-        self.indicies = np.random.choice(np.arange(self.n_reservior), size=log_neurons, replace=False)
-        self.log_neurons = log_neurons > 0
-        self.debug_neurons = []
 
         self.x = self.initial_state()
         self.train_state = None
@@ -57,6 +54,8 @@ class Doctor:
 
         self.YX = np.zeros((self.n_output, self.n_readouts))
         self.YXC = np.zeros((self.n_output, self.n_readouts))
+
+        self.nurse = Nurse(self)
 
 
     def normalize_batch(self, states, actions):
@@ -182,19 +181,14 @@ class Doctor:
 
             for i in range(n_samples):
 
-
                 if i + self.d >= n_samples:
                     break
 
-                if self.log_neurons:
-                    self.debug_neurons.append(
-                        np.squeeze(self.x[self.indicies])
-                    )
-
                 u_now = states[i]
-                y = actions[i]
-                
+                y = actions[i]              
                 u_future = states[i + self.d]
+
+                self.nurse.on_training_tick(u_now, u_future, y)
 
                 self(u_now, u_future)
 
@@ -242,12 +236,8 @@ class Doctor:
         sp.save_npz(os.path.join(p, f"w_{core}.npz"), self.w)
         np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
         np.save(os.path.join(p, f"leaky_mask_{core}.npy"), self.leaky_mask)
-        
-        if self.log_neurons:
-            np.save(
-                os.path.join(p, f"neurons_{core}.npy"),
-                np.array(self.debug_neurons)
-            )
+
+        self.nurse.on_save(core, p)
         
     def load_model(self, core=0):
         p = self.path

@@ -16,7 +16,6 @@ var gui = new dat.GUI();
 var options = {
     reset: () => {
         init();
-        console.log(frameId);
     },
     pause: () => {
         paused = !paused;

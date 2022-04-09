@@ -1,0 +1,101 @@
+{
+    "dataset": "peregrine_all_SS_5",
+    "reference_signal": "reference_signal",
+    "reference_loop_start": 0,
+    "reference_loop_end": 40,
+    "test_time": 0.8,
+    "beta": 1e-05,
+    "n_reservior": 600,
+    "washout": 40,
+    "spectral_radius": 0.94,
+    "w_in": [
+        0,
+        0.08
+    ],
+    "w_in_bias": [
+        0,
+        0.8
+    ],
+    "w_min": -0.8,
+    "w_max": 0.8,
+    "d": 6,
+    "leaky_alpha_min": 0.05,
+    "leaky_alpha_max": 0.99,
+    "w_method": "material",
+    "kahan": false,
+    "local_w_in_architecture": [
+        [
+            0.0008,
+            0.0005
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0.0,
+            0.0004
+        ],
+        [
+            0,
+            0.0008
+        ]
+    ],
+    "local_w_architecture": [
+        [
+            0.4,
+            0.01
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0.005,
+            0.005
+        ],
+        [
+            0,
+            0.6
+        ]
+    ],
+    "local_other_density": 0.8,
+    "local_n_other": 100,
+    "local_manhattan": 3,
+    "local_heart_leak_alpha": 0.1,
+    "sparse_density": 0.15,
+    "local_w_in_architecture_labels": [
+        "in_cur_heart_mu",
+        "in_cur_heart_sd",
+        "in_fut_heart_mu",
+        "in_fut_heart_sd",
+        "in_cur_other_mu",
+        "in_cur_other_sd",
+        "in_fut_other_mu",
+        "in_fut_other_sd"
+    ],
+    "local_w_architecture_labels": [
+        "heart_heart_mu",
+        "heart_heart_sd",
+        "other_heart_mu",
+        "other_heart_sd",
+        "heart_other_mu",
+        "heart_other_sd",
+        "other_other_mu",
+        "other_other_sd"
+    ],
+    "material_subsample": 4,
+    "material_density": 0.25,
+    "material_w_in": [
+        0.002,
+        0.0005
+    ],
+    "material_w_bias": [
+        0,
+        0.0005
+    ],
+    "material_w": [
+        0,
+        0.5
+    ]
+}

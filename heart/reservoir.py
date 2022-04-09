@@ -2,7 +2,6 @@ import numpy as np
 from scipy import sparse as sp
 
 
-
 def normal(params, size=None):
     mu, scale = params
     return np.random.normal(mu, scale, size=size)
@@ -53,17 +52,15 @@ def heartlike(
         heart_pars.get('gridx')
     )
 
-    heart_weights = pars.get("local_heart_weights")
     n_local = heart_shape[0] * heart_shape[1]
     n_other = pars.get("local_n_other")
     n_reservoir = n_local + n_other
     indicies = np.reshape(np.arange(n_local), heart_shape)
     manhattan = pars.get("local_manhattan")
     detectors = heart_pars.get("detectors")
-    w_max = pars.get("w_max")
-    w_min = pars.get("w_min")
     spectral_radius = pars.get("spectral_radius")
-    w_heart_to_other = pars.get("local_heart_to_other_weights")
+    w_heart_heart, w_other_heart, w_heart_other, w_other_other = pars.get("local_w_architecture")
+    w_in_cur_heart, w_in_fut_heart, w_in_cur_other, w_in_fut_other = pars.get("local_w_in_architecture")
 
     # ---------------------- W ------------------------------
     heart = np.zeros((n_local, n_local))
@@ -78,23 +75,24 @@ def heartlike(
             )
             src = indicies[i, j]
             for neighbour, distance in neighbours:
-                heart[src, neighbour] = normal(heart_weights) * (1 / (distance + 1))
+                heart[src, neighbour] = normal(w_heart_heart) * (1 / (distance + 1))
     
     if n_other > 0:
-        other = sp.rand(
+        o_o_mu, o_o_sd = w_other_other
+        other = sp.random(
             n_other,
             n_other, 
             density=pars.get("local_other_density"),
             format="bsr"
-        ) *  (w_max - w_min)
+        ) * o_o_sd
     
-        other.data = other.data + w_min
+        other.data = other.data + o_o_mu
     
         # From other to heart
-        M1 = np.zeros((n_local, n_other)) # np.random.random((n_local, n_other)) * (w_max - w_min) + w_min
+        M1 = normal(w_other_heart, size=(n_local, n_other)) # np.random.random((n_local, n_other)) * (w_max - w_min) + w_min
 
         # From heart to other
-        M2 = normal(w_heart_to_other, size=(n_other, n_local)) # np.zeros((n_other, n_local))  
+        M2 = normal(w_heart_other, size=(n_other, n_local)) # np.zeros((n_other, n_local))  
 
         w = np.block([
             [heart, M1],
@@ -110,12 +108,10 @@ def heartlike(
     # ---------------------- W_in-----------------------------
     n_detectors = len(detectors)
     n_input = n_detectors * 2 + 1
-    w_in = np.zeros((n_reservoir, n_input))
-    w_in_weights = pars.get("local_heart_w_in")
-    w_in_other_weights = pars.get("w_in")
-    n_other_in = n_detectors
+    w_in_block_fut_heart = np.zeros((n_local, n_detectors))
+    w_in_block_cur_heart = np.zeros((n_local, n_detectors))
 
-    # Setup connection to heart
+
     for u_index, detector in enumerate(detectors):
         neighbours = get_neighbours(
             detector,
@@ -125,15 +121,27 @@ def heartlike(
             passable="bottom"
         )
 
-        for neighbour, distance in neighbours:
-            w_in[neighbour, u_index] = normal(w_in_weights) * (1 / (distance + 1))
 
-    # Setup connection to reservoir      
-    for u_offset in range(n_other_in):
-        u_index = n_detectors + u_offset
-        connections_to_reservoir = normal(w_in_other_weights, size=n_other)
-        w_in[n_local:,u_index] = connections_to_reservoir
+        for neighbour, distance in neighbours:
+            # Current to heart
+            w_in_block_cur_heart[neighbour, u_index] = normal(w_in_cur_heart) * (1 / (distance + 1))
+            # Future to heart
+            w_in_block_fut_heart[neighbour, u_index] = normal(w_in_fut_heart) * (1 / (distance + 1))
+
+
+    w_in_block_fut_other = normal(w_in_fut_other, (n_other, n_detectors))
+    w_in_block_cur_other = normal(w_in_cur_other, (n_other, n_detectors))
+
+    w_in_no_bias = np.block([
+            [w_in_block_cur_heart, w_in_block_fut_heart],
+            [w_in_block_cur_other, w_in_block_fut_other]
+        ])
     
+
+    # Set everything but bias
+    w_in = np.zeros((n_reservoir, n_input))
+    w_in[:,:-1] = w_in_no_bias
+
     # Setup bias
     w_in_bias = pars.get("w_in_bias")
     w_in[:,-1] = normal(w_in_bias, size=n_reservoir)
@@ -150,11 +158,10 @@ def heartlike(
     # ---------------------- Leaky mask------------------------
 
     leaky_mask = np.zeros((n_reservoir, 1))
-    local_min = pars.get("local_heart_leak_alpha_min")
-    local_max = pars.get("local_heart_leak_alpha_max")
+    local_leaky = pars.get("local_heart_leak_alpha")
     other_min = pars.get("leaky_alpha_min")
     other_max = pars.get("leaky_alpha_max")
-    leaky_mask[:n_local,:] = np.random.random((n_local, 1)) * (local_max - local_min) + local_min
+    leaky_mask[:n_local,:] = np.ones((n_local, 1)) * local_leaky
     leaky_mask[n_local:,:] = np.random.random((n_other, 1)) * (other_max - other_min) + other_min
 
     return sp.bsr_array(w_in), sp.bsr_array(w), w_out, leaky_mask
@@ -194,6 +201,10 @@ def sparse(pars, heart_pars):
     w_in_weights = pars.get("w_in")
     w_in = normal(w_in_weights, size=(n, n_input))
 
+    # Setup bias
+    w_in_bias = pars.get("w_in_bias")
+    w_in[:,-1] = normal(w_in_bias, size=n)
+
     # ---------------------- W_out ----------------------------
     n_output = len(heart_pars.get("injectors"))
     n_readouts = n_input + n
@@ -209,7 +220,63 @@ def sparse(pars, heart_pars):
     leaky_alpha_max = pars.get("leaky_alpha_max")
     leaky_mask = np.random.random((n, 1)) * (leaky_alpha_max - leaky_alpha_min) + leaky_alpha_min 
 
-    return w_in, w, w_out, leaky_mask
+    return sp.bsr_array(w_in), w, w_out, leaky_mask
+
+
+def material(pars, heart_pars):
+
+    n = pars.get("n_reservior")
+    w_mu, w_sd = pars.get("material_w")
+    spectral_radius = pars.get("spectral_radius")
+
+    # ---------------------- W ------------------------------
+    w = sp.rand(
+            n,
+            n, 
+            density=pars.get("material_density"),
+            format="bsr"
+        ) *  w_sd
+    
+    w.data = w.data + w_mu
+
+    sr = calc_sr(w.toarray())
+
+    w = (w / sr) * spectral_radius
+    # ---------------------- W_in -----------------------------
+
+    if heart_pars.exists("__ss_size"):
+        n_state = heart_pars.get("__ss_size")
+    else:
+        n_state = heart_pars.get("gridx") * heart_pars.get("gridy")
+        
+    n_input = n_state * 2 + 1
+    w_in_weights = pars.get("material_w_in")
+    subsample = pars.get("material_subsample")
+    w_in = np.zeros((n, n_input))
+    # Get shape of the functional input
+    w_in_shape = w_in[:,:-1:subsample].shape
+    w_in[:,:-1:subsample] = normal(w_in_weights, size=w_in_shape)
+
+    # Setup bias
+    w_in_bias = pars.get("material_w_bias")
+    w_in[:,-1] = normal(w_in_bias, size=n)
+
+    # ---------------------- W_out ----------------------------
+    n_output = len(heart_pars.get("injectors"))
+    n_readouts = n_input + n
+    w_out = np.random.normal(
+        0,
+        0.5,
+        (n_output, n_readouts)
+    )
+
+    # ---------------------- Leaky mask------------------------
+
+    leaky_alpha_min = pars.get("leaky_alpha_min")
+    leaky_alpha_max = pars.get("leaky_alpha_max")
+    leaky_mask = np.random.random((n, 1)) * (leaky_alpha_max - leaky_alpha_min) + leaky_alpha_min 
+    
+    return sp.bsr_array(w_in), w, w_out, leaky_mask
 
 def get_architecture(pars, heart_pars):
     
@@ -223,6 +290,11 @@ def get_architecture(pars, heart_pars):
     
     elif method == "sparse":
         w_in, w, w_out, leaky_mask = sparse(
+            pars,
+            heart_pars
+        )
+    elif method == "material":
+        w_in, w, w_out, leaky_mask = material(
             pars,
             heart_pars
         )
