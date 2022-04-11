@@ -290,7 +290,7 @@ class Doctor:
             self.w.dot(self.x)
         )
 
-        self.train_state = self.fast_append(u, self.x) 
+        self.train_state = self.fast_append(self.x, u) 
 
         return np.matmul(self.w_out, self.train_state)
     

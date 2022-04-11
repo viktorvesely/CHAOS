@@ -187,7 +187,10 @@ def sparse(pars, heart_pars):
             n, 
             density= 1- pars.get("sparse_density"),
             format="csr"
-        ).toarray() *  (w_max - w_min) + w_min
+        ) *  (w_max - w_min)
+
+    w.data = w.data + w_min
+    w = w.toarray()
 
     sr = calc_sr(w)
 
@@ -233,8 +236,11 @@ def material(pars, heart_pars):
             n, 
             density= 1 - pars.get("material_density"),
             format="csr"
-        ).toarray() *  w_sigma * 2 - w_sigma
-    
+        )*  w_sigma * 2 
+
+    w.data = w.data - w_sigma
+    w = w.toarray()
+
     sr = calc_sr(w)
 
     w = (w / sr) * spectral_radius

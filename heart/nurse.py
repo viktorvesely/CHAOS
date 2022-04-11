@@ -80,8 +80,6 @@ class Nurse:
         self.y_test = []
 
 
-
-
     def on_test_tick(self, u_now, u_future, yhat, y):
 
         u = np.zeros(u_now.size + u_future.size)

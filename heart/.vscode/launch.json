@@ -5,6 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Single",
+            "type": "python",
+            "request": "launch",
+            "program": "hospital.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--name",
+                "debug",
+                "--parts",
+                "1"
+            ]
+        },
+        {
             "name": "CurrFile",
             "type": "python",
             "request": "launch",
