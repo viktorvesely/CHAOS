@@ -13,7 +13,7 @@
     "w_min": -0.8,
     "w_max": 0.8,
     "d": 6,
-    "leaky_alpha_min": 0.05,
+    "leaky_alpha_min": 0.6,
     "leaky_alpha_max": 0.99,
     "w_method": "material",
     "kahan": false,
@@ -50,8 +50,8 @@
         "other_other_mu",
         "other_other_sd" 
     ],
-    "material_density": 0.35,
+    "material_density": 0.8,
     "material_w_in": [0.002, 0.0005],
     "material_w_bias": [0, 0.0005],
-    "material_w": [0, 0.5] 
+    "material_sigma": 1 
 }

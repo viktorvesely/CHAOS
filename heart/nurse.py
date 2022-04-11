@@ -63,7 +63,7 @@ class Nurse:
             replace=False
         )
 
-        w_in_influence = doctor.w_in.toarray()[self.n_i,:]
+        w_in_influence = doctor.w_in[self.n_i,:]
         self.u_i = self.pick_random_non_zero_value_indices(w_in_influence, log_stuff, axis=1)
         
         w_out_influence = doctor.w_out[:,self.n_i]

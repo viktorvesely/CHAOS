@@ -11,19 +11,20 @@ from reservoir import get_architecture
 from nurse import Nurse
 
 @numba.njit(parallel=True)
-def fadd(a1, a2):
-    result = np.zeros(a1.shape)
-    for i in numba.prange(a1.shape[0]):
-        for j in numba.prange(a1.shape[1]):
+def fadd(a1, a2, shape):
+    result = np.zeros(shape)
+    for i in numba.prange(shape[0]):
+        for j in numba.prange(shape[1]):
             result[i, j] = a1[i, j] + a2[i, j]
+    return result
 
-PARALLEL_ADD = True
+PARALLEL_ADD = False
 
 
 class Doctor:
 
     def __init__(
-        self, 
+        self,
         name,
         beta, 
         washout,
@@ -184,9 +185,6 @@ class Doctor:
         
         if verbal:
             print("Training network")
-
-        ZEROSX = np.zeros(self.XX.shape)
-        ZEROSY = np.zeros(self.YX.shape)
         
         core = 1
         for states, actions in generator:
@@ -203,7 +201,7 @@ class Doctor:
                 if i + self.d >= n_samples:
                     break
 
-                u_now = states[i]
+                u_now =  states[i]
                 y = actions[i]              
                 u_future = states[i + self.d]
 
@@ -230,14 +228,8 @@ class Doctor:
                     self.YX = temp
                 
                 else:
-                    if PARALLEL_ADD:
-                        self.XX = fadd(self.XX, ZEROSX)
-                        self.YX = fadd(self.YX, ZEROSY)
-                    else:
-                        self.XX = self.XX + ZEROSX
-                        self.YX = self.YX + ZEROSY
-                    #self.XX = self.XX + np.matmul(self.train_state, train_state_t)
-                    #self.YX = self.YX + np.matmul(y, train_state_t)
+                    self.XX = self.XX + np.matmul(self.train_state, train_state_t)
+                    self.YX = self.YX + np.matmul(y, train_state_t)
             
             end = time.perf_counter()
             if verbal:
@@ -258,8 +250,8 @@ class Doctor:
         p = self.path
         self.core = core
 
-        sp.save_npz(os.path.join(p, f"w_in_{core}.npz"), self.w_in)
-        sp.save_npz(os.path.join(p, f"w_{core}.npz"), self.w)
+        np.save(os.path.join(p, f"w_in_{core}.npy"), self.w_in)
+        np.save(os.path.join(p, f"w_{core}.npy"), self.w)
         np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
         np.save(os.path.join(p, f"leaky_mask_{core}.npy"), self.leaky_mask)
 
@@ -268,8 +260,8 @@ class Doctor:
     def load_model(self, core=0):
         p = self.path
 
-        self.w_in = sp.load_npz(os.path.join(p, f"w_in_{core}.npz"))
-        self.w = sp.load_npz(os.path.join(p, f"w_{core}.npz"))
+        self.w_in = np.load(os.path.join(p, f"w_in_{core}.npz"))
+        self.w = np.load(os.path.join(p, f"w_{core}.npz"))
         self.w_out = np.load(os.path.join(p, f"w_out_{core}.npy"))
         self.leaky_mask = np.load(os.path.join(p, f"leaky_mask_{core}.npy"))
 

@@ -82,12 +82,12 @@ def heartlike(
         other = sp.random(
             n_other,
             n_other, 
-            density=pars.get("local_other_density"),
-            format="bsr"
+            density= 1 - pars.get("local_other_density"),
+            format="csr"
         ) * o_o_sd
     
         other.data = other.data + o_o_mu
-    
+        
         # From other to heart
         M1 = normal(w_other_heart, size=(n_local, n_other)) # np.random.random((n_local, n_other)) * (w_max - w_min) + w_min
 
@@ -164,7 +164,7 @@ def heartlike(
     leaky_mask[:n_local,:] = np.ones((n_local, 1)) * local_leaky
     leaky_mask[n_local:,:] = np.random.random((n_other, 1)) * (other_max - other_min) + other_min
 
-    return sp.bsr_array(w_in), sp.bsr_array(w), w_out, leaky_mask
+    return w_in, w, w_out, leaky_mask
 
 def calc_sr(w):
     return np.max(
@@ -185,13 +185,11 @@ def sparse(pars, heart_pars):
     w = sp.rand(
             n,
             n, 
-            density=pars.get("sparse_density"),
-            format="bsr"
-        ) *  (w_max - w_min)
-    
-    w.data = w.data + w_min
+            density= 1- pars.get("sparse_density"),
+            format="csr"
+        ).toarray() *  (w_max - w_min) + w_min
 
-    sr = calc_sr(w.toarray())
+    sr = calc_sr(w)
 
     w = (w / sr) * spectral_radius
     # ---------------------- W_in -----------------------------
@@ -220,26 +218,24 @@ def sparse(pars, heart_pars):
     leaky_alpha_max = pars.get("leaky_alpha_max")
     leaky_mask = np.random.random((n, 1)) * (leaky_alpha_max - leaky_alpha_min) + leaky_alpha_min 
 
-    return sp.bsr_array(w_in), w, w_out, leaky_mask
+    return w_in, w, w_out, leaky_mask
 
 
 def material(pars, heart_pars):
 
     n = pars.get("n_reservior")
-    w_mu, w_sd = pars.get("material_w")
+    w_sigma = pars.get("material_sigma")
     spectral_radius = pars.get("spectral_radius")
 
     # ---------------------- W ------------------------------
     w = sp.rand(
             n,
             n, 
-            density=pars.get("material_density"),
-            format="bsr"
-        ) *  w_sd
+            density= 1 - pars.get("material_density"),
+            format="csr"
+        ).toarray() *  w_sigma * 2 - w_sigma
     
-    w.data = w.data + w_mu
-
-    sr = calc_sr(w.toarray())
+    sr = calc_sr(w)
 
     w = (w / sr) * spectral_radius
     # ---------------------- W_in -----------------------------
@@ -276,7 +272,7 @@ def material(pars, heart_pars):
     leaky_alpha_max = pars.get("leaky_alpha_max")
     leaky_mask = np.random.random((n, 1)) * (leaky_alpha_max - leaky_alpha_min) + leaky_alpha_min 
     
-    return sp.bsr_array(w_in), w, w_out, leaky_mask
+    return w_in, w, w_out, leaky_mask
 
 def get_architecture(pars, heart_pars):
     
