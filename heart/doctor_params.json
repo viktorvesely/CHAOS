@@ -12,8 +12,8 @@
     "w_in_bias": [0, 0.8],
     "w_min": -0.8,
     "w_max": 0.8,
-    "d": 6,
-    "leaky_alpha_min": 0.3,
+    "d": 3,
+    "leaky_alpha_min": 0.01,
     "leaky_alpha_max": 0.99,
     "w_method": "material",
     "kahan": false,
@@ -50,8 +50,13 @@
         "other_other_mu",
         "other_other_sd" 
     ],
-    "material_density": 0.3,
-    "material_w_in": [0, 0.01],
+    "material_density": 0.15,
+    "material_w_in": [0, 0.009],
     "material_w_bias": [0, 0.0005],
-    "material_sigma": 1 
+    "material_sigma": 1,
+    "spatial_neruons_per_input": 10,
+    "spatial_manhattan": 3,
+    "spatial_w_sigma": 1,
+    "spatial_w_in": [0, 0.009],
+    "spatial_w_bias": [0, 0.0005]
 }

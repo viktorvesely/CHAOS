@@ -224,6 +224,89 @@ def sparse(pars, heart_pars):
     return w_in, w, w_out, leaky_mask
 
 
+def spatial(pars, heart_pars):
+
+    if heart_pars.exists("__ss_shape"):
+        shape = heart_pars.get("__ss_shape")
+    else:
+        shape = (heart_pars.get("gridx"), heart_pars.get("gridy"))
+    
+    n_state = shape[0] * shape[1]
+
+    x_per_u = pars.get("spatial_neruons_per_input")
+    n =  x_per_u * n_state
+    pars.override("n_reservior", n)
+    w_sigma = pars.get("spatial_w_sigma")
+    w_in_pars = pars.get("spatial_w_in")
+    spectral_radius = pars.get("spectral_radius")
+    manhattan = pars.get("spatial_manhattan")
+
+    # ---------------------- W ------------------------------
+        
+    w = np.zeros((n, n))
+    for u_base in range(n_state):
+        for x_base1 in range(x_per_u):
+            x_index1 = x_per_u * u_base + x_base1
+            for x_base2 in range(x_per_u):
+                x_index2 = x_per_u * u_base + x_base2
+                w[x_index1, x_index2] = np.random.random() * w_sigma * 2 - w_sigma
+
+    sr = calc_sr(w)
+
+    w = (w / sr) * spectral_radius
+
+    w = sp.bsr_array(w)
+    # ---------------------- W_in -----------------------------
+
+    n_input = n_state * 2 + 1
+    w_in = np.zeros((n, n_input))
+
+    indices = np.arange(n_state).reshape(shape)
+    tenses = 2
+
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            for tense in range(tenses):
+                u_base = indices[i, j]
+                offset = tense * n_state
+                neighbours = get_neighbours(
+                    [i, j],
+                    shape,
+                    indices,
+                    manhattan=manhattan,
+                    passable="top"
+                )
+
+                for neighbour, distance in neighbours:
+                    for x_base in range(x_per_u):
+                        x_index = x_per_u * u_base + x_base
+                        neighbour_index = neighbour + offset
+                        w_in[x_index, neighbour_index] = normal(w_in_pars) / (distance * 0.5 + 1)
+    
+                    
+
+    # Setup bias
+    w_in_bias = pars.get("spatial_w_bias")
+    w_in[:,-1] = normal(w_in_bias, size=n)
+
+    # ---------------------- W_out ----------------------------
+    n_output = len(heart_pars.get("injectors"))
+    n_readouts = n_input + n
+    w_out = np.random.normal(
+        0,
+        0.5,
+        (n_output, n_readouts)
+    )
+
+    # ---------------------- Leaky mask------------------------
+
+    leaky_alpha_min = pars.get("leaky_alpha_min")
+    leaky_alpha_max = pars.get("leaky_alpha_max")
+    leaky_mask = np.random.random((n, 1)) * (leaky_alpha_max - leaky_alpha_min) + leaky_alpha_min 
+    
+    return w_in, w, w_out, leaky_mask
+
+
 def material(pars, heart_pars):
 
     n = pars.get("n_reservior")
@@ -253,10 +336,12 @@ def material(pars, heart_pars):
         n_state = heart_pars.get("gridx") * heart_pars.get("gridy")
         
     n_input = n_state * 2 + 1
+    n_half = int(np.ceil(n / 2))
     w_in_weights = pars.get("material_w_in")
     w_in = np.zeros((n, n_input))
-    w_in_shape = w_in[:,:-1].shape
-    w_in[:,:-1] = normal(w_in_weights, size=w_in_shape)
+
+    w_in[:n_half,:n_state] = normal(w_in_weights, size=(n_half, n_state))
+    w_in[n_half:,n_state:-1] = normal(w_in_weights, size=(n_half, n_state))
 
     # Setup bias
     w_in_bias = pars.get("material_w_bias")
@@ -299,6 +384,11 @@ def get_architecture(pars, heart_pars):
             pars,
             heart_pars
         )
+    elif method == "spatial":
+        w_in, w, w_out, leaky_mask = spatial(
+            pars,
+            heart_pars
+        )
     else:
         raise ValueError(f"Unknown method: '{method}'")
 
@@ -315,20 +405,15 @@ if __name__ == "__main__":
 
     heart_pars = Params("./params.json")
     pars = Params("./doctor_params.json")
-    heart_pars.override("gridx", 3)
+    heart_pars.override("gridx", 2)
     heart_pars.override("gridy", 4)
-    heart_pars.override("detectors", [[0, 0], [1, 0]])
+    pars.override("spatial_neruons_per_input", 3)
 
-    w_in, w, w_out = heartlike(
+    w_in, w, w_out, _ = spatial(
         pars,
-        heart_pars,
-        {
-            "heart_weights": [0.9, 0.2],
-            "w_in": [0.1, 0.05],
-            "n_other": 0,
-            "manhattan": 1
-        }
+        heart_pars
     )
+    print(w.blocksize)
     np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
     s = np.array_repr(
             w.toarray()[:,:]

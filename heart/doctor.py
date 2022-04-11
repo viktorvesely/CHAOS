@@ -250,6 +250,9 @@ class Doctor:
         p = self.path
         self.core = core
 
+        if sp.issparse(self.w):
+            self.w = self.w.toarray()
+            
         np.save(os.path.join(p, f"w_in_{core}.npy"), self.w_in)
         np.save(os.path.join(p, f"w_{core}.npy"), self.w)
         np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
