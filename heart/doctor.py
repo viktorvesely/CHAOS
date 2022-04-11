@@ -2,12 +2,22 @@ import numpy as np
 import os
 from scipy import sparse as sp
 import time
+import numba
 
 import recorder
 from loader import dedicate_folder
 from dictator import Dictator
 from reservoir import get_architecture
 from nurse import Nurse
+
+@numba.njit(parallel=True)
+def fadd(a1, a2):
+    result = np.zeros(a1.shape)
+    for i in numba.prange(a1.shape[0]):
+        for j in numba.prange(a1.shape[1]):
+            result[i, j] = a1[i, j] + a2[i, j]
+
+PARALLEL_ADD = True
 
 
 class Doctor:
@@ -51,10 +61,11 @@ class Doctor:
 
         self.XX = np.zeros((self.n_readouts, self.n_readouts))
         self.XXC = np.zeros((self.n_readouts, self.n_readouts))
-
+        
         self.YX = np.zeros((self.n_output, self.n_readouts))
         self.YXC = np.zeros((self.n_output, self.n_readouts))
 
+        self.core = None
         self.nurse = Nurse(self)
 
 
@@ -125,6 +136,7 @@ class Doctor:
         self.heart_pars.override("t_end", original_t_end)
     
         
+
     def test_train_data(self, generator, cores=1):
         
         print("Testing on train data")
@@ -151,6 +163,8 @@ class Doctor:
 
                 yhat = self(u_now, u_future)
 
+                self.nurse.on_test_tick(u_now, u_future, yhat, y)
+
                 if i < self.washout_period:
                     continue
 
@@ -159,6 +173,8 @@ class Doctor:
         
         ys = np.squeeze(np.array(ys))
         yhats = np.squeeze(np.array(yhats))
+
+        self.nurse.on_test_finish(self.core, self.path)
      
         return ys, yhats
         
@@ -168,6 +184,9 @@ class Doctor:
         
         if verbal:
             print("Training network")
+
+        ZEROSX = np.zeros(self.XX.shape)
+        ZEROSY = np.zeros(self.YX.shape)
         
         core = 1
         for states, actions in generator:
@@ -211,8 +230,14 @@ class Doctor:
                     self.YX = temp
                 
                 else:
-                    self.XX = self.XX + np.matmul(self.train_state, train_state_t)
-                    self.YX = self.YX + np.matmul(y, train_state_t)
+                    if PARALLEL_ADD:
+                        self.XX = fadd(self.XX, ZEROSX)
+                        self.YX = fadd(self.YX, ZEROSY)
+                    else:
+                        self.XX = self.XX + ZEROSX
+                        self.YX = self.YX + ZEROSY
+                    #self.XX = self.XX + np.matmul(self.train_state, train_state_t)
+                    #self.YX = self.YX + np.matmul(y, train_state_t)
             
             end = time.perf_counter()
             if verbal:
@@ -231,6 +256,7 @@ class Doctor:
 
     def save_model(self, core=0):
         p = self.path
+        self.core = core
 
         sp.save_npz(os.path.join(p, f"w_in_{core}.npz"), self.w_in)
         sp.save_npz(os.path.join(p, f"w_{core}.npz"), self.w)

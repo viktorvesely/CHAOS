@@ -1,13 +1,13 @@
 {
-    "dataset": "peregrine_all_SS_5",
+    "dataset": "peregrine_big",
     "reference_signal": "reference_signal",
     "reference_loop_start": 0,
     "reference_loop_end": 40,
     "test_time": 0.8,
     "beta": 0.00001,
-    "n_reservior": 600,
+    "n_reservior": 500,
     "washout": 40,
-    "spectral_radius": 0.94,
+    "spectral_radius": 0.9,
     "w_in": [0, 0.08],
     "w_in_bias": [0, 0.8],
     "w_min": -0.8,
@@ -50,8 +50,7 @@
         "other_other_mu",
         "other_other_sd" 
     ],
-    "material_subsample": 4,
-    "material_density": 0.25,
+    "material_density": 0.35,
     "material_w_in": [0.002, 0.0005],
     "material_w_bias": [0, 0.0005],
     "material_w": [0, 0.5] 

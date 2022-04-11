@@ -93,5 +93,6 @@
         "fs": 400,
         "order": 1,
         "mean_percentage": 0.9
-    }
+    },
+    "__ss_shape": [4, 2]
 }

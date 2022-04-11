@@ -244,18 +244,18 @@ def material(pars, heart_pars):
     w = (w / sr) * spectral_radius
     # ---------------------- W_in -----------------------------
 
-    if heart_pars.exists("__ss_size"):
-        n_state = heart_pars.get("__ss_size")
+    if heart_pars.exists("__ss_shape"):
+        shape = heart_pars.get("__ss_shape")
+        n_state = shape[0] * shape[1]
     else:
         n_state = heart_pars.get("gridx") * heart_pars.get("gridy")
         
     n_input = n_state * 2 + 1
     w_in_weights = pars.get("material_w_in")
-    subsample = pars.get("material_subsample")
     w_in = np.zeros((n, n_input))
     # Get shape of the functional input
-    w_in_shape = w_in[:,:-1:subsample].shape
-    w_in[:,:-1:subsample] = normal(w_in_weights, size=w_in_shape)
+    w_in_shape = w_in[:,:-1].shape
+    w_in[:,:-1] = normal(w_in_weights, size=w_in_shape)
 
     # Setup bias
     w_in_bias = pars.get("material_w_bias")

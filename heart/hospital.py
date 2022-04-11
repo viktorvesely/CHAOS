@@ -8,6 +8,9 @@ from loader import dedicate_folder, load_experiment_generator
 from settings import Params
 from doctor import Doctor
 
+import cProfile
+import pstats
+
 def get_parser():
     import argparse
 
@@ -377,8 +380,14 @@ if __name__ == '__main__':
     else:
         print(f"[{name}] Singlethreaded training")
         start = time.perf_counter()
-        NRMSE, _ = train_single_thread(name, path, doctor_params, parts=args.parts)
+        with cProfile.Profile() as pr:
+            NRMSE, _ = train_single_thread(name, path, doctor_params, parts=args.parts)
+        
         end = time.perf_counter()
+        stats = pstats.Stats(pr)
+        stats.sort_stats(pstats.SortKey.TIME)
+        #stats.print_stats()
+        stats.dump_stats("./output.prof")
         print(f"NRMSE: {NRMSE}")
         print(f"Singlethreaded training took {end - start}")
     
