@@ -5,7 +5,7 @@
     "reference_loop_end": 40,
     "test_time": 0.8,
     "beta": 0.00001,
-    "n_reservior": 500,
+    "n_reservior": 1000,
     "washout": 40,
     "spectral_radius": 0.99,
     "w_in": [0, 0.08],
@@ -50,8 +50,8 @@
         "other_other_mu",
         "other_other_sd" 
     ],
-    "material_density": 0.4,
-    "material_w_in": [0, 0.007],
+    "material_density": 0.3,
+    "material_w_in": [0, 0.01],
     "material_w_bias": [0, 0.0005],
     "material_sigma": 1 
 }
