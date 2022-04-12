@@ -24,7 +24,7 @@ class Nurse:
                     chosen.append(pos[axis])
 
         if len(chosen) < n:
-            raise ValueError("Not enough non-zero elements in the avail matrix")
+            raise ValueError(f"Not enough non-zero elements in the avail matrix. Got: {len(chosen)} Needed: {n}")
 
         return np.array(chosen)
         

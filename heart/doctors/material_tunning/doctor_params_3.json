@@ -4,27 +4,61 @@
     "reference_loop_start": 0,
     "reference_loop_end": 40,
     "test_time": 0.8,
-    "beta": 0.00001,
+    "beta": 1e-05,
     "n_reservior": 1000,
     "washout": 40,
-    "spectral_radius": 0.90,
-    "w_in": [0, 0.08],
-    "w_in_bias": [0, 0.8],
+    "spectral_radius": 0.99,
+    "w_in": [
+        0,
+        0.08
+    ],
+    "w_in_bias": [
+        0,
+        0.8
+    ],
     "w_min": -0.8,
     "w_max": 0.8,
     "d": 3,
     "x^2": false,
-    "leaky_alpha_min": 0.5,
+    "leaky_alpha_min": 0.01,
     "leaky_alpha_max": 0.99,
     "w_method": "material",
     "kahan": false,
     "local_w_in_architecture": [
-        [0.0008, 0.0005], [0, 0],
-        [0.0, 0.0004], [0, 0.0008]
+        [
+            0.0008,
+            0.0005
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0.0,
+            0.0004
+        ],
+        [
+            0,
+            0.0008
+        ]
     ],
     "local_w_architecture": [
-        [0.4, 0.01], [0, 0],
-        [0.005, 0.005], [0, 0.6]
+        [
+            0.4,
+            0.01
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0.005,
+            0.005
+        ],
+        [
+            0,
+            0.6
+        ]
     ],
     "local_other_density": 0.8,
     "local_n_other": 100,
@@ -39,7 +73,7 @@
         "in_cur_other_mu",
         "in_cur_other_sd",
         "in_fut_other_mu",
-        "in_fut_other_sd" 
+        "in_fut_other_sd"
     ],
     "local_w_architecture_labels": [
         "heart_heart_mu",
@@ -49,15 +83,31 @@
         "heart_other_mu",
         "heart_other_sd",
         "other_other_mu",
-        "other_other_sd" 
+        "other_other_sd"
     ],
-    "material_density": 0.15,
-    "material_w_in": [0, 0.02],
-    "material_w_bias": [0, 0.0005],
+    "material_density": 0.25,
+    "material_w_in": [
+        0,
+        0.009
+    ],
+    "material_w_bias": [
+        0,
+        0.0005
+    ],
     "material_sigma": 1,
     "spatial_neruons_per_input": 10,
     "spatial_manhattan": 3,
     "spatial_w_sigma": 1,
-    "spatial_w_in": [0, 0.009],
-    "spatial_w_bias": [0, 0.0005]
+    "spatial_w_in": [
+        0,
+        0.009
+    ],
+    "spatial_w_bias": [
+        0,
+        0.0005
+    ],
+    "__hyper_params": {
+        "leaky_alpha_min": 0.01,
+        "leaky_alpha_max": 0.99
+    }
 }

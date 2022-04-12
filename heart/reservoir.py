@@ -398,45 +398,52 @@ def get_architecture(pars, heart_pars):
 if __name__ == "__main__":
     
     from settings import Params
-
+    from os.path import join
+    import os
     # heart_shape = (4, 3)
     # indicies = np.arange(heart_shape[0] * heart_shape[1]).reshape(heart_shape)
     # ns = get_neighbours((1, 0), heart_shape, indicies, manhattan=2)
 
-    heart_pars = Params("./params.json")
     pars = Params("./doctor_params.json")
-    heart_pars.override("gridx", 2)
-    heart_pars.override("gridy", 4)
-    pars.override("spatial_neruons_per_input", 3)
+    heart = join(os.getcwd(), 'hearts', pars.get("dataset"), 'params.json')
+    heart_pars = Params(heart)
+
 
     w_in, w, w_out, _ = spatial(
         pars,
         heart_pars
     )
-    print(w.blocksize)
-    np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-    s = np.array_repr(
-            w.toarray()[:,:]
-    ).replace(
-        "\n",
-        ""
-    ).replace(
-        "array",
-        ""
-    ).replace(
-        "]",
-        "]\n"
-    ).replace(
-        ")",
-        ""
-    ).replace(
-        "(",
-        ""
-    ).replace(
-        "  ",
-        ""
-    )
 
-    s = f" {s}"
 
-    print(s)
+
+    for i, row in enumerate(w_in):
+        non_zero = np.sum(~(row == 0))
+        print(non_zero)
+
+    # print(w.blocksize)
+    # np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
+    # s = np.array_repr(
+    #         w.toarray()[:,:]
+    # ).replace(
+    #     "\n",
+    #     ""
+    # ).replace(
+    #     "array",
+    #     ""
+    # ).replace(
+    #     "]",
+    #     "]\n"
+    # ).replace(
+    #     ")",
+    #     ""
+    # ).replace(
+    #     "(",
+    #     ""
+    # ).replace(
+    #     "  ",
+    #     ""
+    # )
+
+    # s = f" {s}"
+
+    # print(s)

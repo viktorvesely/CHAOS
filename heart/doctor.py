@@ -37,11 +37,6 @@ class Doctor:
         sampling_frequency
     ):       
 
-        self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
-        self.n_input = self.w_in.shape[1]
-        self.n_reservior = self.w.shape[0]
-        self.n_output, self.n_readouts = self.w_out.shape
-
         self.name = name 
         self.beta = beta
         self.washout_period = washout
@@ -57,6 +52,12 @@ class Doctor:
         self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
 
+        self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
+        self.setup_x_squared()
+        self.n_input = self.w_in.shape[1]
+        self.n_reservior = self.w.shape[0]
+        self.n_output, self.n_readouts = self.w_out.shape
+
         self.x = self.initial_state()
         self.train_state = None
 
@@ -68,6 +69,20 @@ class Doctor:
 
         self.core = None
         self.nurse = Nurse(self)
+
+
+    def setup_x_squared(self):
+        self.x_squared = self.pars.get("x^2")
+        if not self.x_squared:
+            return
+
+        n_x = self.w.shape[0]
+        n_u = self.w_in.shape[1]
+        n_y = self.w_out.shape[0]
+
+        n_readouts = n_u + n_x * 2
+        
+        self.w_out = np.random.random((n_y, n_readouts))
 
 
     def normalize_batch(self, states, actions):
@@ -280,8 +295,17 @@ class Doctor:
 
     def fast_append_and_insert_one(self, vectorA, vectorB):
         result = np.ones((vectorA.size + vectorB.size + 1, 1))
-        result[1 : vectorA.size + 1] = vectorA
-        result[vectorA.size + 1:] = vectorB
+        result[:vectorA.size] = vectorA
+        result[vectorA.size:-1] = vectorB
+        return result
+
+    def triple_fast_append(self, vectorA, vectorB, vectorC):
+        sa, sb, sc = vectorA.size, vectorB.size, vectorC.size
+        result = np.zeros((sa + sb + sc, 1))
+        result[:sa] = vectorA
+        result[sa:sa+sb] = vectorB
+        result[sa+sb:] = vectorC
+
         return result
 
     def __call__(self, u_now, u_future):
@@ -293,7 +317,15 @@ class Doctor:
             self.w.dot(self.x)
         )
 
-        self.train_state = self.fast_append(self.x, u) 
+        if self.x_squared:
+            self.train_state = self.triple_fast_append(
+                self.x,
+                self.x * self.x,
+                u
+            )
+        
+        else:
+            self.train_state = self.fast_append(self.x, u) 
 
         return np.matmul(self.w_out, self.train_state)
     
