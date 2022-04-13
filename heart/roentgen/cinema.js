@@ -27,7 +27,10 @@ var options = {
     showRho: false,
     showInjectors: false,
     showDetectors: false,
-    speed: 1
+    speed: 1,
+    trail: 30,
+    trajectory: false,
+    disturbed: false
 }
 
 gui.add(options, "reset");
@@ -38,6 +41,9 @@ gui.add(options, "showK_o");
 gui.add(options, "showRho");
 gui.add(options, "showInjectors");
 gui.add(options, "showDetectors");
+gui.add(options, "trail").min(1).max(100).step(1);
+gui.add(options, "trajectory");
+gui.add(options, "disturbed");
 
 function rescale() {
     let x, y;
@@ -66,21 +72,64 @@ function init() {
 
 }
 
+function trad(i) {
+    i = i % trajectory_d[0].length
+    
+    let x = trajectory_d[0][i];
+    let y = trajectory_d[1][i];
 
-function draw() {
+    x = (x - t_x_lim[0]) / (t_x_lim[1] - t_x_lim[0]);
+    y = (y - t_y_lim[0]) / (t_y_lim[1] - t_y_lim[0]);
+
+    return [x * width, y * height];
+}
+
+function tra(i) {
+    i = i % trajectory[0].length
+    
+    let x = trajectory[0][i];
+    let y = trajectory[1][i];
+
+    x = (x - t_x_lim[0]) / (t_x_lim[1] - t_x_lim[0]);
+    y = (y - t_y_lim[0]) / (t_y_lim[1] - t_y_lim[0]);
+
+    return [x * width, y * height];
+}
+
+function draw_trajectory() {
+    let ri = Math.round(frameId);
+    let src;
+
+    src = tra(ri);
+    ctx.beginPath();
+    ctx.moveTo(src[0], src[1]);
+    for (let i = 1; i < options.trail; i++) {
+        src = tra(ri - i);
+        ctx.lineTo(src[0], src[1]);
+    }
+    ctx.strokeStyle = "white";
+    ctx.stroke();
+
+
+    if (options.disturbed) {
+        src = trad(ri);
+        ctx.beginPath();
+        ctx.moveTo(src[0], src[1]);
+        for (let i = 1; i < options.trail; i++) {
+            src = trad(ri - i);
+            ctx.lineTo(src[0], src[1]);
+        }
+        ctx.strokeStyle = "red";
+        ctx.stroke();
+    }
+}
+
+function drawgrid() {
+
     let index = Math.round(frameId);
 
-    if (index >= data.length) {
-        frameId = data.length - 1;
-        index = data.length - 1;
-    };
-    
     frame = data[index];
 
-    ctx.fillStyle = "black"; 
-    ctx.beginPath();
-    ctx.rect(0, 0, width, height);    
-    ctx.fill();
 
     for (let y = 0; y < gridy; y++) {
         for (let x = 0; x < gridx; x++) {
@@ -132,9 +181,33 @@ function draw() {
         });
     }
 
+} 
+
+function draw() {
+
+    ctx.fillStyle = "black"; 
+    ctx.beginPath();
+    ctx.rect(0, 0, width, height);    
+    ctx.fill();
+
+    let index = Math.round(frameId);
+
+    if (index >= data.length) {
+        frameId = 0;
+        index = 0;
+    }
+    
+
+    if (options.trajectory) {
+        draw_trajectory();
+    } else {
+        drawgrid();
+    }
+
     time();
     
     if (!paused) frameId += options.speed;
+
     requestAnimationFrame(draw);
 }
 

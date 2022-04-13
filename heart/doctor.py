@@ -4,6 +4,7 @@ import os
 from scipy import sparse as sp
 import time
 import numba
+from sklearn.decomposition import PCA
 
 import recorder
 from loader import dedicate_folder, get_state_size

@@ -400,6 +400,7 @@ def solve(
                 json.dumps(grids)
             )
             fi.write(jString)
+        np.save("./roentgen/video.npy", np.array(grids))
         with open("./roentgen/g_k.js", 'w') as fi:
             g_k_normal = (k_o - min_k) / (max_k - min_k)
             jString = "var g_k = {};".format(json.dumps(g_k_normal.tolist()))
