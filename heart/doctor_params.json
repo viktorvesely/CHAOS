@@ -14,6 +14,7 @@
     "w_max": 0.8,
     "d": 3,
     "x^2": false,
+    "state_sub": false,
     "leaky_alpha_min": 0.5,
     "leaky_alpha_max": 0.99,
     "w_method": "material",

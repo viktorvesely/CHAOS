@@ -28,7 +28,11 @@ def get_newest_name(name, path_to_dir="../hearts/"):
 
     return new_name
 
-
+def get_state_size(path_to_heart):
+    path = join(path_to_heart, 'data', 'states_0_0.npy')
+    states = np.load(path)
+    return states[0].size
+    
 def get_cores_and_batch(path):
     experiment_path = path
     data_files = [f for f in os.listdir(experiment_path) if isfile(join(experiment_path, f))]

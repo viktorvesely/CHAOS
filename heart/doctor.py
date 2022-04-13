@@ -1,3 +1,4 @@
+from re import S
 import numpy as np
 import os
 from scipy import sparse as sp
@@ -5,7 +6,7 @@ import time
 import numba
 
 import recorder
-from loader import dedicate_folder
+from loader import dedicate_folder, get_state_size
 from dictator import Dictator
 from reservoir import get_architecture
 from nurse import Nurse
@@ -51,15 +52,26 @@ class Doctor:
         self.dictator = Dictator(self.pars, self.heart_pars)
         self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
+        self.core = None
 
         self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
-        self.setup_x_squared()
         self.n_input = self.w_in.shape[1]
         self.n_reservior = self.w.shape[0]
         self.n_output, self.n_readouts = self.w_out.shape
 
         self.x = self.initial_state()
         self.train_state = None
+        self.u_size = get_state_size(os.path.join(os.getcwd(), 'hearts', pars.get("dataset")))
+        self.u_now = np.zeros((self.u_size, 1))
+        self.u_future = np.zeros((self.u_size, 1))
+
+        self.extenders = []
+        if pars.get("x^2"):
+            self.extend_readouts(self.x_squared)
+        if pars.get("state_sub"):
+            self.extend_readouts(self.sub_input)
+
+        # self.precompute_subtract_material()
 
         self.XX = np.zeros((self.n_readouts, self.n_readouts))
         self.XXC = np.zeros((self.n_readouts, self.n_readouts))
@@ -67,23 +79,25 @@ class Doctor:
         self.YX = np.zeros((self.n_output, self.n_readouts))
         self.YXC = np.zeros((self.n_output, self.n_readouts))
 
-        self.core = None
         self.nurse = Nurse(self)
+    
+    def precompute_subtract_material(self):
+        w_in_cols = self.w_in.shape[1]
+        # w_in = np.zeros(self.n_reservior, w_in_cols + self.u_size)
+        # w_in[:,:self.u_size] = 
+        # w_in[:,:w_in_cols] = self.w_in
+        # w_in[:,:]
 
+    def extend_readouts(self, blueprint):
+        self.extenders.append(blueprint)
+        self.n_readouts += blueprint().size
+        self.w_out = np.random.random((self.n_output, self.n_readouts)) 
 
-    def setup_x_squared(self):
-        self.x_squared = self.pars.get("x^2")
-        if not self.x_squared:
-            return
-
-        n_x = self.w.shape[0]
-        n_u = self.w_in.shape[1]
-        n_y = self.w_out.shape[0]
-
-        n_readouts = n_u + n_x * 2
-        
-        self.w_out = np.random.random((n_y, n_readouts))
-
+    def x_squared(self):
+        return self.x * self.x
+    
+    def sub_input(self):
+        return self.u_future - self.u_now
 
     def normalize_batch(self, states, actions):
         s_min, s_max = self.u_bounds
@@ -308,8 +322,27 @@ class Doctor:
 
         return result
 
+    def compile_readouts(self, u):
+        readouts = np.zeros((self.n_readouts, 1))
+
+        base = 0
+        for blueprint in self.extenders:
+            addition = blueprint()
+            size = addition.size
+            readouts[base:base + size] = addition
+            base += size
+
+        readouts[base:base + self.x.size] = self.x
+        base += self.x.size
+        readouts[base:] = u
+
+        return readouts
+
+
     def __call__(self, u_now, u_future):
 
+        self.u_now = u_now
+        self.u_future = u_future
         u = self.fast_append_and_insert_one(u_now, u_future)
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
@@ -317,15 +350,7 @@ class Doctor:
             self.w.dot(self.x)
         )
 
-        if self.x_squared:
-            self.train_state = self.triple_fast_append(
-                self.x,
-                self.x * self.x,
-                u
-            )
-        
-        else:
-            self.train_state = self.fast_append(self.x, u) 
+        self.train_state = self.compile_readouts(u)
 
         return np.matmul(self.w_out, self.train_state)
     
