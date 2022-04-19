@@ -329,19 +329,20 @@ def material(pars, heart_pars):
     w = (w / sr) * spectral_radius
     # ---------------------- W_in -----------------------------
 
-    if heart_pars.exists("__ss_shape"):
+    pca_dim = pars.get("pca_dim")
+    if pca_dim > 0:
+        n_state = pca_dim
+    elif heart_pars.exists("__ss_shape"):
         shape = heart_pars.get("__ss_shape")
         n_state = shape[0] * shape[1]
     else:
         n_state = heart_pars.get("gridx") * heart_pars.get("gridy")
         
     n_input = n_state * 2 + 1
-    n_half = int(np.ceil(n / 2))
+    #n_half = int(np.ceil(n / 2))
     w_in_weights = pars.get("material_w_in")
     w_in = np.zeros((n, n_input))
-
-    w_in[:n_half,:n_state] = normal(w_in_weights, size=(n_half, n_state))
-    w_in[n_half:,n_state:-1] = normal(w_in_weights, size=(n_half, n_state))
+    w_in[:,:-1] = normal(w_in_weights, size=(n, n_state * 2))
 
     # Setup bias
     w_in_bias = pars.get("material_w_bias")

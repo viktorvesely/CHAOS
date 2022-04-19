@@ -7,7 +7,7 @@ import numba
 from sklearn.decomposition import PCA
 
 import recorder
-from loader import dedicate_folder, get_state_size
+from loader import dedicate_folder, get_state_size, load_experiment_generator
 from dictator import Dictator
 from reservoir import get_architecture
 from nurse import Nurse
@@ -54,6 +54,8 @@ class Doctor:
         self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
         self.core = None
+        self.pca = None
+        self.__is_pca = False
 
         self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
         self.n_input = self.w_in.shape[1]
@@ -64,6 +66,8 @@ class Doctor:
         self.train_state = None
         self.u_size = get_state_size(os.path.join(os.getcwd(), 'hearts', pars.get("dataset")))
         self.u_now = np.zeros((self.u_size, 1))
+        self.V_now = np.zeros((self.u_size, 1))
+        self.non_pca_states = None
         self.u_future = np.zeros((self.u_size, 1))
 
         self.extenders = []
@@ -71,8 +75,9 @@ class Doctor:
             self.extend_readouts(self.x_squared)
         if pars.get("state_sub"):
             self.extend_readouts(self.sub_input)
-
-        # self.precompute_subtract_material()
+        pca_dim = pars.get("pca_dim")
+        if pca_dim > 0:
+            self.init_pca(pca_dim)
 
         self.XX = np.zeros((self.n_readouts, self.n_readouts))
         self.XXC = np.zeros((self.n_readouts, self.n_readouts))
@@ -82,12 +87,28 @@ class Doctor:
 
         self.nurse = Nurse(self)
     
-    def precompute_subtract_material(self):
-        w_in_cols = self.w_in.shape[1]
-        # w_in = np.zeros(self.n_reservior, w_in_cols + self.u_size)
-        # w_in[:,:self.u_size] = 
-        # w_in[:,:w_in_cols] = self.w_in
-        # w_in[:,:]
+
+    def init_pca(self, pca_dim):
+        self.__is_pca = True
+        self.pca = PCA(n_components=pca_dim)
+        
+        generator = load_experiment_generator(
+            self.pars.get("dataset"),
+            os.path.join(os.getcwd(), 'hearts')
+        )
+
+        states, _ = next(generator)
+
+        s_min, s_max = self.u_bounds
+        states = (states - s_min) / (s_max - s_min)
+
+        states = states - np.mean(states, axis=0)
+        self.pca.fit(states)
+
+        self.extend_readouts(self.heart)
+        
+    def heart(self):
+        return self.V_now    
 
     def extend_readouts(self, blueprint):
         self.extenders.append(blueprint)
@@ -112,7 +133,15 @@ class Doctor:
         n_samples = s_shape[0]
 
         states = (states - s_min) / (s_max - s_min)
+        states = states - np.mean(states, axis=0)
         actions = (actions - a_min) / (a_max - a_min)
+
+        if self.__is_pca:
+            self.non_pca_states = states
+            states = self.pca.transform(np.squeeze(states))
+            shape = states.shape
+
+            states = np.reshape(states, (shape[0], shape[1], 1))
 
         return states, actions, n_samples
 
@@ -192,7 +221,10 @@ class Doctor:
                 
                 u_future = states[i + self.d]
 
-                yhat = self(u_now, u_future)
+                if self.__is_pca:
+                    yhat = self(u_now, u_future, self.non_pca_states[i])
+                else:
+                    yhat = self(u_now, u_future)
 
                 self.nurse.on_test_tick(u_now, u_future, yhat, y)
 
@@ -237,7 +269,10 @@ class Doctor:
 
                 self.nurse.on_training_tick(u_now, u_future, y)
 
-                self(u_now, u_future)
+                if self.__is_pca:
+                    self(u_now, u_future, self.non_pca_states[i])
+                else:
+                    self(u_now, u_future)
 
                 if i < self.washout_period:
                     continue
@@ -340,7 +375,7 @@ class Doctor:
         return readouts
 
 
-    def __call__(self, u_now, u_future):
+    def __call__(self, u_now, u_future, non_pca_state=None):
 
         self.u_now = u_now
         self.u_future = u_future
@@ -350,6 +385,9 @@ class Doctor:
             self.w_in.dot(u) +
             self.w.dot(self.x)
         )
+
+        if self.__is_pca:
+            self.V_now = non_pca_state
 
         self.train_state = self.compile_readouts(u)
 
