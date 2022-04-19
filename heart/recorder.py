@@ -16,7 +16,7 @@ class RecorderMode(Enum):
 class Recorder:
 
     MAX_BUFFEE_SIZE = 10_000
-    MINIMAL_DISTURBANCE = 1e-3;
+    MINIMAL_DISTURBANCE = 1e-1;
 
     def __init__(self, name, core, path, pars, lineArgs=None):
         self.name = name

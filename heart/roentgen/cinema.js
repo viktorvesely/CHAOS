@@ -78,9 +78,6 @@ function trad(i) {
     let x = trajectory_d[0][i];
     let y = trajectory_d[1][i];
 
-    x = (x - t_x_lim[0]) / (t_x_lim[1] - t_x_lim[0]);
-    y = (y - t_y_lim[0]) / (t_y_lim[1] - t_y_lim[0]);
-
     return [x * width, y * height];
 }
 
@@ -89,9 +86,6 @@ function tra(i) {
     
     let x = trajectory[0][i];
     let y = trajectory[1][i];
-
-    x = (x - t_x_lim[0]) / (t_x_lim[1] - t_x_lim[0]);
-    y = (y - t_y_lim[0]) / (t_y_lim[1] - t_y_lim[0]);
 
     return [x * width, y * height];
 }
