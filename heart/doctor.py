@@ -85,7 +85,11 @@ class Doctor:
         self.YX = np.zeros((self.n_output, self.n_readouts))
         self.YXC = np.zeros((self.n_output, self.n_readouts))
 
-        self.nurse = Nurse(self)
+        self.nurse = Nurse(self, 
+            self.w_in.shape[1],
+            self.w.shape[0],
+            self.w_out.shape[0]
+        )
     
 
     def init_pca(self, pca_dim):
@@ -142,6 +146,7 @@ class Doctor:
             shape = states.shape
 
             states = np.reshape(states, (shape[0], shape[1], 1))
+            states = states - np.mean(states, axis=0)
 
         return states, actions, n_samples
 

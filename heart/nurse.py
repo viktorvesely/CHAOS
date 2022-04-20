@@ -5,6 +5,9 @@ class Nurse:
 
 
     def pick_random_non_zero_value_indices(self, avail, n, axis=None):
+        """
+        DO NOT USE
+        """
         hack = np.min(avail) - 1
         indices = np.array(np.where(avail > hack))
         shuffle_indices = np.arange(indices.shape[1])
@@ -30,12 +33,12 @@ class Nurse:
         
         
 
-    def __init__(self, doctor):
+    def __init__(self, doctor, u_size, x_size, y_size):
         self.doctor = doctor
         self.doc_pars = doctor.pars
         self.heart_pars = doctor.heart_pars
 
-        log_stuff = 10
+        log_stuff = 1
 
         # n_local = self.heart_pars.get("gridx") * self.heart_pars.get("gridy")
         # n_other = self.doc_pars.get("local_n_other")
@@ -55,19 +58,23 @@ class Nurse:
         # self.local_neurons = []
 
 
-        n_neurons = self.doc_pars.get("n_reservior")
-
         self.n_i = np.random.choice(
-            np.arange(n_neurons),
+            np.arange(x_size),
             size=log_stuff,
             replace=False
         )
 
-        w_in_influence = doctor.w_in[self.n_i,:]
-        self.u_i = self.pick_random_non_zero_value_indices(w_in_influence, log_stuff, axis=1)
+        self.u_i = np.random.choice(
+            np.arange(u_size),
+            size=log_stuff,
+            replace=False
+        )
         
-        w_out_influence = doctor.w_out[:,self.n_i]
-        self.y_i = self.pick_random_non_zero_value_indices(w_out_influence, log_stuff, axis=0)
+        self.y_i = np.random.choice(
+            np.arange(y_size),
+            size=log_stuff,
+            replace=False
+        )
         
         self.neurons = []
         self.u = []

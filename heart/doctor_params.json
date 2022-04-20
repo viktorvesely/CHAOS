@@ -54,8 +54,8 @@
         "other_other_sd" 
     ],
     "material_density": 0.15,
-    "material_w_in": [0, 0.02],
-    "material_w_bias": [0, 0.0005],
+    "material_w_in": [0, 0.04],
+    "material_w_bias": [0, 0.001],
     "material_sigma": 1,
     "spatial_neruons_per_input": 10,
     "spatial_manhattan": 3,
