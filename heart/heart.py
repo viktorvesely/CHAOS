@@ -23,7 +23,7 @@ if not peregrine:
 euler = True
 
 # Video params
-every_nth_frame = 200
+every_nth_frame = 100
 c_min = -82 # mv
 c_max = 40 # mV
 

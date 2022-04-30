@@ -241,6 +241,9 @@ def iterate_param(remaining_grid_keys, grid):
 
 def generate_grid(grid):
 
+    if "__runs" in grid:
+        return grid["__runs"]
+
     keys = list(grid.keys())
     runs = [ run for run in iterate_param(keys, grid) ]
 
@@ -292,7 +295,7 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
 
     ranked = sorted(results, key=lambda result: result[0])
 
-    keys = grid.keys()
+    keys = runs[0].keys()
     export = "nrmse"
 
     for key in keys:

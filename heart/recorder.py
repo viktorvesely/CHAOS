@@ -16,7 +16,7 @@ class RecorderMode(Enum):
 class Recorder:
 
     MAX_BUFFEE_SIZE = 10_000
-    MINIMAL_DISTURBANCE = 1e-4
+    MINIMAL_DISTURBANCE = 20
 
     def __init__(self, name, core, path, pars, lineArgs=None):
         self.name = name
@@ -152,8 +152,7 @@ class Recorder:
         if not self.lineArgs.disrupt:
             return 0
         
-        dist = np.zeros(self.grid)
-        dist[0, 1] = Recorder.MINIMAL_DISTURBANCE
+        dist = np.random.random(self.grid) * Recorder.MINIMAL_DISTURBANCE
 
         return dist
 

@@ -1,13 +1,10 @@
 {
-    "pca_dim": [
-        40, 
-        45,
-        50,
-        55,
-        60,
-        65,
-        70,
-        75
+    "__runs": [
+        { "leaky_alpha_min": 0.1, "leaky_alpha_max": 0.1 },
+        { "leaky_alpha_min": 0.1, "leaky_alpha_max": 0.5 },
+        { "leaky_alpha_min": 0.5, "leaky_alpha_max": 0.5 },
+        { "leaky_alpha_min": 0.1, "leaky_alpha_max": 0.9 },
+        { "leaky_alpha_min": 0.5, "leaky_alpha_max": 0.9 },
+        { "leaky_alpha_min": 0.9, "leaky_alpha_max": 0.9 }
     ]
-
 }

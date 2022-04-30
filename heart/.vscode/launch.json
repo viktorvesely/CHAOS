@@ -5,6 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Hyper",
+            "type": "python",
+            "request": "launch",
+            "program": "hospital.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--name",
+                "debug_hypr",
+                "--parts",
+                "1",
+                "--hypercores",
+                "3"
+            ]
+        },
+        {
             "name": "Single",
             "type": "python",
             "request": "launch",

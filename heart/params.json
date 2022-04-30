@@ -1,6 +1,6 @@
 {
     "t_start": 0,
-    "t_end": 180000,
+    "t_end": 10000,
     "BPS": 1.7,
     "stim_start": 1,
     "stim_end": 40,

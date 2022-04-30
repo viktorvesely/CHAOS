@@ -216,24 +216,24 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(n_samples):
+            for i in range(self.d + 1, n_samples):
 
-                if i + self.d >= n_samples:
-                    break
+                # u_now = states[i]
+                # y = actions[i]
+                # u_future = states[i + self.d]
 
-                u_now = states[i]
-                y = actions[i]
-                
-                u_future = states[i + self.d]
+                u_now = states[i - self.d]
+                y = actions[i - self.d - 1]
+                u_future = states[i]
 
                 if self.__is_pca:
-                    yhat = self(u_now, u_future, self.non_pca_states[i])
+                    yhat = self(u_now, u_future, self.non_pca_states[i - self.d])
                 else:
                     yhat = self(u_now, u_future)
 
                 self.nurse.on_test_tick(u_now, u_future, yhat, y)
 
-                if i < self.washout_period:
+                if i < self.washout_period + self.d:
                     continue
 
                 yhats.append(yhat)
@@ -263,23 +263,26 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(n_samples):
+            for i in range(self.d + 1, n_samples):
 
-                if i + self.d >= n_samples:
-                    break
 
-                u_now =  states[i]
-                y = actions[i]              
-                u_future = states[i + self.d]
+                # u_now =  states[i]
+                # y = actions[i]            
+                # u_future = states[i + self.d]
+
+                
+                u_now =  states[i - self.d]
+                y = actions[i - self.d - 1]            
+                u_future = states[i]
 
                 self.nurse.on_training_tick(u_now, u_future, y)
 
                 if self.__is_pca:
-                    self(u_now, u_future, self.non_pca_states[i])
+                    self(u_now, u_future, self.non_pca_states[i - self.d])
                 else:
                     self(u_now, u_future)
 
-                if i < self.washout_period:
+                if i < (self.washout_period + self.d):
                     continue
 
                 train_state_t = self.train_state.T

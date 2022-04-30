@@ -38,7 +38,7 @@ class Nurse:
         self.doc_pars = doctor.pars
         self.heart_pars = doctor.heart_pars
 
-        log_stuff = 1
+        log_stuff = 10
 
         # n_local = self.heart_pars.get("gridx") * self.heart_pars.get("gridy")
         # n_other = self.doc_pars.get("local_n_other")
@@ -59,20 +59,20 @@ class Nurse:
 
 
         self.n_i = np.random.choice(
-            np.arange(x_size),
+            np.arange(x_size - 1),
             size=log_stuff,
             replace=False
         )
 
         self.u_i = np.random.choice(
-            np.arange(u_size),
+            np.arange(u_size - 1),
             size=log_stuff,
             replace=False
         )
         
         self.y_i = np.random.choice(
-            np.arange(y_size),
-            size=log_stuff,
+            np.arange(y_size - 1),
+            size=min(log_stuff - 1, y_size - 1),
             replace=False
         )
         
