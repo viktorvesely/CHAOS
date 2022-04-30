@@ -126,8 +126,6 @@ class Doctor:
         return self.u_future - self.u_now
 
     def normalize_batch(self, states, actions):
-        s_min, s_max = self.u_bounds
-        a_min, a_max = self.y_bounds
 
         s_shape = states.shape
         states = np.reshape(states, (s_shape[0], s_shape[1], 1))
@@ -135,18 +133,6 @@ class Doctor:
         actions = np.reshape(actions, (a_shape[0], a_shape[1], 1))
 
         n_samples = s_shape[0]
-
-        states = (states - s_min) / (s_max - s_min)
-        states = states - np.mean(states, axis=0)
-        actions = (actions - a_min) / (a_max - a_min)
-
-        if self.__is_pca:
-            self.non_pca_states = states
-            states = self.pca.transform(np.squeeze(states))
-            shape = states.shape
-
-            states = np.reshape(states, (shape[0], shape[1], 1))
-            states = states - np.mean(states, axis=0)
 
         return states, actions, n_samples
 
@@ -216,14 +202,14 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(self.d + 1, n_samples):
+            for i in range(self.d, n_samples):
 
                 # u_now = states[i]
                 # y = actions[i]
                 # u_future = states[i + self.d]
 
                 u_now = states[i - self.d]
-                y = actions[i - self.d - 1]
+                y = actions[i - self.d]
                 u_future = states[i]
 
                 if self.__is_pca:
@@ -263,7 +249,7 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(self.d + 1, n_samples):
+            for i in range(self.d, n_samples):
 
 
                 # u_now =  states[i]
@@ -272,7 +258,7 @@ class Doctor:
 
                 
                 u_now =  states[i - self.d]
-                y = actions[i - self.d - 1]            
+                y = actions[i - self.d]            
                 u_future = states[i]
 
                 self.nurse.on_training_tick(u_now, u_future, y)
