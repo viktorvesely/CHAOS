@@ -59,20 +59,20 @@ class Nurse:
 
 
         self.n_i = np.random.choice(
-            np.arange(x_size - 1),
-            size=log_stuff,
+            np.arange(x_size),
+            size=10,
             replace=False
         )
 
         self.u_i = np.random.choice(
-            np.arange(u_size - 1),
-            size=log_stuff,
+            np.arange(u_size),
+            size=2,
             replace=False
         )
         
         self.y_i = np.random.choice(
-            np.arange(y_size - 1),
-            size=min(log_stuff - 1, y_size - 1),
+            np.arange(y_size),
+            size=1,
             replace=False
         )
         

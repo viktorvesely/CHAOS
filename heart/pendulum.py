@@ -50,13 +50,14 @@ def test_pendulum():
 def convert_data(experiment_name):
     states = scipy.io.loadmat(join(os.getcwd(), 'data', 'states.mat'))["plantStateTrainDataCartPL"]
     actions = scipy.io.loadmat(join(os.getcwd(), 'data', 'actions.mat'))["torqueTrainDataPL"]
+    a_min = np.min(actions)
+    a_max = np.max(actions)
+    actions = (actions) / (a_max - a_min) * 2 
     
     path = join(os.getcwd(), 'hearts', experiment_name)
-    if os.path.isdir(path):
-        raise ValueError(f"Experiment with name {experiment_name} already exists")
-
-    os.mkdir(path)
-    os.mkdir(join(path, 'data'))
+    if not os.path.isdir(path):
+        os.mkdir(path)
+        os.mkdir(join(path, 'data'))
 
     X = states[1]
     Y = states[2]
@@ -65,12 +66,30 @@ def convert_data(experiment_name):
     np.save(join(path, 'data', 'states_0_0.npy'), states.T)
     np.save(join(path, 'data', 'actions_0_0.npy'), actions.T)
     
-    
+
+def show():
+    states = scipy.io.loadmat(join(os.getcwd(), 'data', 'states.mat'))["plantStateTrainDataCartPL"]
+    actions = scipy.io.loadmat(join(os.getcwd(), 'data', 'actions.mat'))["torqueTrainDataPL"]
+    a_min = np.min(actions)
+    a_max = np.max(actions)
+    actions = (actions) / (a_max - a_min) * 2
+    print(np.min(actions), np.max(actions))
+    X = states[1]
+    Y = states[2]
+
+    begin = 1000
+    window = 200
+    end = begin + window
+
+    # plt.plot(X[begin:end])
+    # plt.plot(Y[begin:end])
+    # plt.plot(actions[0][begin:end])
+    # plt.show()
     
 
 if __name__ == '__main__':
-    convert_data("pendelum")
-    
+    convert_data("pendulum")
+    #show()
 
 
     

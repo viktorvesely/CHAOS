@@ -31,7 +31,7 @@ def boot_doctor_train(name, path, doc_pars, core=0):
     # Copy settings
     doc_pars.save(os.path.join(path, f"doctor_params_{core}.json"))
 
-    heart_pars = Params(os.path.join(get_heart_path(doc_pars), "params.json"))
+    heart_pars = None
 
     doctor = Doctor(
         name,
@@ -39,17 +39,11 @@ def boot_doctor_train(name, path, doc_pars, core=0):
         doc_pars.get('washout'),
         doc_pars.get('d'),
         path,
-        [   
-            heart_pars.get('min_Vm'),
-            heart_pars.get('max_Vm')
-        ],
-        [
-            heart_pars.get('min_action'),
-            heart_pars.get('max_action')
-        ],
+        None,
+        None,
         doc_pars,
         heart_pars,
-        heart_pars.get('sampling_frequency')
+        None
     )
 
     return doctor
@@ -383,11 +377,8 @@ if __name__ == '__main__':
     else:
         print(f"[{name}] Singlethreaded training")
         start = time.perf_counter()
-       
         NRMSE, _ = train_single_thread(name, path, doctor_params, parts=args.parts)
-        
         end = time.perf_counter()
-        #stats.print_stats()
         print(f"NRMSE: {NRMSE}")
         print(f"Singlethreaded training took {end - start}")
     

@@ -329,14 +329,7 @@ def material(pars, heart_pars):
     w = (w / sr) * spectral_radius
     # ---------------------- W_in -----------------------------
 
-    pca_dim = pars.get("pca_dim")
-    if pca_dim > 0:
-        n_state = pca_dim
-    elif heart_pars.exists("__ss_shape"):
-        shape = heart_pars.get("__ss_shape")
-        n_state = shape[0] * shape[1]
-    else:
-        n_state = heart_pars.get("gridx") * heart_pars.get("gridy")
+    n_state = 2
         
     n_input = n_state * 2 + 1
     #n_half = int(np.ceil(n / 2))
@@ -349,7 +342,7 @@ def material(pars, heart_pars):
     w_in[:,-1] = normal(w_in_bias, size=n)
 
     # ---------------------- W_out ----------------------------
-    n_output = len(heart_pars.get("injectors"))
+    n_output = 1
     n_readouts = n_input + n
     w_out = np.random.normal(
         0,

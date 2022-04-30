@@ -49,7 +49,7 @@ class Doctor:
         self.pars = pars
         self.heart_pars = heart_pars
         self.fs = sampling_frequency
-        self.exploit_period = 1000 / sampling_frequency
+        self.exploit_period = None
         self.dictator = Dictator(self.pars, self.heart_pars)
         self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
@@ -327,7 +327,6 @@ class Doctor:
         self.w_out = np.load(os.path.join(p, f"w_out_{core}.npy"))
         self.leaky_mask = np.load(os.path.join(p, f"leaky_mask_{core}.npy"))
 
-
     def initial_state(self):
         return np.zeros((self.n_reservior, 1))
 
@@ -367,7 +366,6 @@ class Doctor:
         readouts[base:] = u
 
         return readouts
-
 
     def __call__(self, u_now, u_future, non_pca_state=None):
 
