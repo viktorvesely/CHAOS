@@ -66,6 +66,9 @@ def test(doctor, save=True):
         cores=1
     )
 
+    ys = ys.T
+    yhats = yhats.T
+
     delta = np.mean((yhats - ys) * (yhats - ys), axis=1)
     variances = np.var(ys, axis=1)
     NMSE = delta / variances
