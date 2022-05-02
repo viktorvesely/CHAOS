@@ -60,11 +60,17 @@ def test(doctor, save=True):
         cores=1
     )
 
-    delta = np.mean((yhats - ys) * (yhats - ys), axis=0)
-    variances = np.var(ys, axis=0)
+    ys = ys.T
+    yhats.T
+    ys = np.reshape(ys, (1, -1))
+    yhats = np.reshape(yhats, (1, -1))
+
+    delta = np.mean((yhats - ys) * (yhats - ys), axis=1)
+    variances = np.var(ys, axis=1)
     NMSE = delta / variances
     NRMSE = np.sqrt(NMSE)
     NRMSE = np.mean(NRMSE)
+
 
     if save:
         np.save("./trash/ys.npy", ys)

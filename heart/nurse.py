@@ -66,7 +66,7 @@ class Nurse:
 
         self.u_i = np.random.choice(
             np.arange(u_size),
-            size=2,
+            size=5,
             replace=False
         )
         

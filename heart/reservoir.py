@@ -329,13 +329,13 @@ def material(pars, heart_pars):
     w = (w / sr) * spectral_radius
     # ---------------------- W_in -----------------------------
 
-    n_state = 2
+    n_state = 3
         
-    n_input = n_state * 2 + 1
+    n_input = n_state * 2 + 1 - 1 # -1 due to the future state not having the phidot
     #n_half = int(np.ceil(n / 2))
     w_in_weights = pars.get("material_w_in")
     w_in = np.zeros((n, n_input))
-    w_in[:,:-1] = normal(w_in_weights, size=(n, n_state * 2))
+    w_in[:,:-1] = normal(w_in_weights, size=(n, n_state * 2 - 1))
 
     # Setup bias
     w_in_bias = pars.get("material_w_bias")

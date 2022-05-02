@@ -10,6 +10,10 @@ g = 9.8
 D = 0.1
 m = 1
 
+
+states = None
+actions = None
+
 def dsdt(state, torque):
 
     phiDot = state[0, 0]
@@ -59,15 +63,16 @@ def convert_data(experiment_name):
         os.mkdir(path)
         os.mkdir(join(path, 'data'))
 
-    X = states[1]
-    Y = states[2]
-    states = np.array([X, Y])
+    # X = states[1]
+    # Y = states[2]
+    # states = np.array([X, Y])
 
     np.save(join(path, 'data', 'states_0_0.npy'), states.T)
     np.save(join(path, 'data', 'actions_0_0.npy'), actions.T)
     
 
 def show():
+    global states, actions
     states = scipy.io.loadmat(join(os.getcwd(), 'data', 'states.mat'))["plantStateTrainDataCartPL"]
     actions = scipy.io.loadmat(join(os.getcwd(), 'data', 'actions.mat'))["torqueTrainDataPL"]
     a_min = np.min(actions)
@@ -81,10 +86,12 @@ def show():
     window = 200
     end = begin + window
 
-    # plt.plot(X[begin:end])
-    # plt.plot(Y[begin:end])
-    # plt.plot(actions[0][begin:end])
-    # plt.show()
+    plt.plot(states[0][begin:end], label="phidot")
+    plt.plot(X[begin:end], label="x")
+    plt.plot(Y[begin:end], label="y")
+    plt.plot(actions[0][begin:end], label="torque")
+    plt.legend()
+    plt.show()
     
 
 if __name__ == '__main__':

@@ -371,7 +371,13 @@ class Doctor:
 
         self.u_now = u_now
         self.u_future = u_future
-        u = self.fast_append_and_insert_one(u_now, u_future)
+        
+        u = np.array([
+            [u_now[0, 0]], [u_now[1, 0]], [u_now[2, 0]],
+            [u_future[1, 0]], [u_future[2, 0]],
+            [1.0]
+        ])
+        # u = self.fast_append_and_insert_one(u_now, u_future)
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
             self.w_in.dot(u) +

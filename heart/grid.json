@@ -1,5 +1,5 @@
 {
-    "__runs": [
+    "win_scaling": [
         { "leaky_alpha_min": 0.1, "leaky_alpha_max": 0.1 },
         { "leaky_alpha_min": 0.1, "leaky_alpha_max": 0.5 },
         { "leaky_alpha_min": 0.5, "leaky_alpha_max": 0.5 },

@@ -7,7 +7,7 @@
     "beta": 0.00001,
     "n_reservior": 100,
     "washout": 30,
-    "spectral_radius": 0.05,
+    "spectral_radius": 0.5,
     "w_in": [0, 0.08],
     "w_in_bias": [0, 0.8],
     "w_min": -0.8,
