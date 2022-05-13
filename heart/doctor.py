@@ -322,8 +322,8 @@ class Doctor:
     def load_model(self, core=0):
         p = self.path
 
-        self.w_in = np.load(os.path.join(p, f"w_in_{core}.npz"))
-        self.w = np.load(os.path.join(p, f"w_{core}.npz"))
+        self.w_in = np.load(os.path.join(p, f"w_in_{core}.npy"))
+        self.w = np.load(os.path.join(p, f"w_{core}.npy"))
         self.w_out = np.load(os.path.join(p, f"w_out_{core}.npy"))
         self.leaky_mask = np.load(os.path.join(p, f"leaky_mask_{core}.npy"))
 

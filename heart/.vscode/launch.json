@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Test",
+            "type": "python",
+            "request": "launch",
+            "program": "hospital.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--name",
+                "pendulum-66",
+                "--test"
+            ]
+        },
+        {
             "name": "Hyper",
             "type": "python",
             "request": "launch",

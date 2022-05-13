@@ -2,11 +2,16 @@ from multiprocessing.pool import Pool, ThreadPool
 import numpy as np
 import os
 import json
+import pandas as pd
+from matplotlib import pyplot as plt
+from mpl_toolkits import mplot3d
 
 import loader
 from loader import dedicate_folder, load_experiment_generator
 from settings import Params
 from doctor import Doctor
+from pendulum import dsdt
+
 
 import cProfile
 import pstats
@@ -20,8 +25,68 @@ def get_parser():
     parser.add_argument('-hc', '--hypercores', type=int, default=0)
     parser.add_argument('-tc', '--traincores', type=int, default=1)
     parser.add_argument('-p', '--parts', type=int, default=-1)
+    parser.add_argument('-t', '--test', action="store_true", default=False)
+    parser.add_argument('-tat', '--testtrain', action="store_true", default=False)
 
     return parser  
+
+
+def diplay_hyper_optimization(path):
+    
+    df = pd.read_csv(os.path.join(path, "results.csv"))
+    n_ivs = len(df.columns) - 1
+    ivs = list(df.columns.values)
+    del ivs[ivs.index("nrmse")]
+    dv ="nrmse"
+
+    if n_ivs == 2:
+        fig = plt.figure(figsize=(7, 7))
+        ax = plt.axes(projection='3d')
+        
+        ax.scatter3D(df[ivs[0]], df[ivs[1]], df[dv], c=df[dv], cmap="Reds")
+        return
+    
+    # Determin the number of columns and rows for the figure
+    n_cols = 3 if n_ivs > 3 else n_ivs
+    n_rows = int(np.ceil(n_ivs / n_cols))
+    # How many figures need to be deleted
+    extra = n_rows * n_cols - n_ivs
+    fig, ax = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+
+    # Case of only one independent variable
+    if n_cols == 1:
+        iv = ivs[0]
+        ax.scatter(df[iv], df[dv], marker="x")
+        ax.set_xlabel(iv)
+        ax.set_ylabel(dv)
+    # Case when there is only one row
+    elif n_rows == 1:
+
+        # Delete extra axes
+        for i in range(1, extra + 1):
+            fig.delaxes(ax[-i])
+    
+        for index, iv in enumerate(ivs):
+            ax[index].scatter(df[iv], df[dv], marker="x")
+            ax[index].set_xlabel(iv)
+            ax[index].set_ylabel(dv)
+    # Case of multiple rows
+    else:
+        # Delete extra axes
+        for i in range(1, extra + 1):
+            fig.delaxes(ax[-1, -i])
+
+        for index, iv in enumerate(ivs):
+            # Calculate the indicies of the figure
+            i = int(np.floor(index / n_cols))
+            j = index % n_cols
+
+            ax[i, j].scatter(df[iv], df[dv], marker="x")
+            ax[i, j].set_xlabel(iv)
+            ax[i, j].set_ylabel(dv)
+    
+    plt.show()
+    
 
 def get_heart_path(doc_pars):
     return os.path.join(os.getcwd(), "hearts", doc_pars.get("dataset"))
@@ -65,18 +130,12 @@ def test(doctor, save=True):
     ys = np.reshape(ys, (1, -1))
     yhats = np.reshape(yhats, (1, -1))
 
-    delta = np.mean((yhats - ys) * (yhats - ys), axis=1)
-    variances = np.var(ys, axis=1)
-    NMSE = delta / variances
-    NRMSE = np.sqrt(NMSE)
-    NRMSE = np.mean(NRMSE)
-
 
     if save:
         np.save("./trash/ys.npy", ys)
         np.save("./trash/yhats.npy", yhats)
     
-    return NRMSE
+    return calc_NRMSE(yhats, ys)
 
 def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-1, core=0):
 
@@ -107,6 +166,28 @@ def train_single_thread_pool_wrapper(args):
     )
 
     doctor.save_model(core=core)
+
+    hyper_params = doctor_pars.get('__hyper_params')
+    return (
+        NRMSE,
+        hyper_params
+    )
+
+def train_single_thread_test_pool_wrapper(args):
+    name, path, doctor_pars, parts, core = args
+    _, doctor = train_single_thread(
+        name,
+        path,
+        doctor_pars,
+        verbal=False,
+        save=False,
+        parts=parts,
+        core=core
+    )
+
+    doctor.save_model(core=core)
+
+    NRMSE = real_test(name, path, doctor_pars, verbal=False, doctor=doctor)
 
     hyper_params = doctor_pars.get('__hyper_params')
     return (
@@ -156,7 +237,6 @@ def train_multi_threaded(name, path, doctor_pars, n_cores):
     doctor.calc_w_out()
     doctor.save_model()
     return test(doctor)
-
 
 def set_item(run, name, item):
     import random
@@ -286,7 +366,7 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
 
     start = time.perf_counter()
     with Pool(hyper_cores) as pool:
-        results = pool.map(train_single_thread_pool_wrapper, pool_args)
+        results = pool.map(train_single_thread_test_pool_wrapper, pool_args)
     end = time.perf_counter()
 
     duration = end - start
@@ -340,14 +420,177 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
 
     with open(os.path.join(path, 'results.csv'), "w", encoding='utf-8') as f:
         f.write(export)
+
+    diplay_hyper_optimization(path)
     
     
+def real_test(name, path, pars, verbal=False, doctor=None):
+    from pendulum import get_targets
+
+    timesteps = 10_000
+    washout = 15
+    t = np.arange(timesteps)
+
+    targets = get_targets(timesteps)
+    #targets = np.load("./hearts/pendulum/data/states_0_0.npy")
+    oractions = np.load("./hearts/pendulum/data/actions_0_0.npy")
+    targets = np.reshape(targets, (targets.shape[0], targets.shape[1], 1))
+
+    # state = np.array([
+    #     [targets[0, 0, 0]],
+    #     [np.arctan2(targets[0, 2, 0], targets[0, 1, 0])]
+    # ])
+
+    state = np.array([
+        [0],
+        [np.pi]
+    ])
+
+    actions = [ ]
+    trajectory = [ ]
+    
+    d = pars.get("d")
+
+    if doctor is None:
+        doctor = Doctor(
+            name,
+            pars.get('beta'),
+            pars.get('washout'),
+            d,
+            path,
+            None,
+            None,
+            pars,
+            None,
+            None
+        )
+
+        doctor.load_model()
+
+    for i in range(timesteps):
+        phi = state[1, 0]
+        u_now = np.array([
+            [state[0, 0]],
+            [np.cos(phi)],
+            [np.sin(phi)]
+        ])
+
+        if i + d >= targets.shape[0]:
+            break
+
+        u_ref = targets[i + d]
+
+        action = doctor(u_now, u_ref)
+        
+        torque = action[0, 0]
+
+        u = np.array([
+            u_now[0, 0], u_now[1, 0], u_now[2, 0],
+            u_ref[1, 0], u_ref[2, 0],
+            1.0
+        ])
+
+        if i < washout:
+            torque = 0
+        
+        torque = np.clip(torque, -40.0, 40.0)
+        #torque = oractions[i, 0]
+
+        trajectory.append(state)
+        state = dsdt(state, torque)
+        actions.append(torque)
+    
+    trajectory = np.squeeze(np.array(trajectory))
+    trajectory = trajectory.T
+
+    targets = np.squeeze(targets)
+    targets = targets[:-d,:].T
+
+    trajectoryCart = np.array([
+        np.cos(trajectory[1]),
+        np.sin(trajectory[1])
+    ])
+    targetCart = np.array([
+        targets[1, :], targets[2, :]
+    ])
+
+    actions = np.array(actions).T
+      
+    if verbal:
+        print(f"NRMSE state diff: {calc_NRMSE(trajectoryCart, targetCart)}")
+
+        begin = 0
+        window = 10_000
+        end = begin + window
+
+        plt.plot(trajectoryCart[0][begin:end], label="x_real", linewidth=4)
+        plt.plot(trajectoryCart[1][begin:end], label="y_real", linewidth=4)
+        plt.plot(targets[1][begin:end], label="x_target", linewidth=1)
+        plt.plot(targets[2][begin:end], label="y_target", linewidth=1)
+        #plt.plot(actions[begin:end], label="actions")
+        plt.legend()
+        plt.show()
+
+    return calc_NRMSE(trajectoryCart, targetCart)
+
+
+def calc_NRMSE(yhat, y):
+    """
+    Axis 0: Features
+    Axis 1: Time
+    """
+    delta = np.mean((yhat - y) * (yhat - y), axis=1)
+    variances = np.var(y, axis=1)
+    NMSE = delta / variances
+    NRMSE = np.sqrt(NMSE)
+    NRMSE = np.mean(NRMSE)
+
+    return NRMSE
+
+
+def test_load(name, path, pars):
+    d = pars.get("d")
+    doctor = Doctor(
+        name,
+        pars.get('beta'),
+        pars.get('washout'),
+        d,
+        path,
+        None,
+        None,
+        pars,
+        None,
+        None
+    )
+
+    doctor.load_model()
+
+    NRMSE = test(doctor, save=False)
+
+    print(f"NRMSE: {NRMSE}")
+
 
 if __name__ == '__main__':
     import time
 
     parser = get_parser()
     args = parser.parse_args()
+
+    if args.test:
+        name = args.name
+        print(f"[{name}] performing the real boi test")
+        path = os.path.join(os.getcwd(), 'doctors', name)
+        doctor_params = Params(os.path.join(path, 'doctor_params_0.json'))
+        real_test(name, path, doctor_params)
+        exit()
+
+    if args.testtrain:
+        name = args.name
+        print(f"[{name}] performing load test")
+        path = os.path.join(os.getcwd(), 'doctors', name)
+        doctor_params = Params(os.path.join(path, 'doctor_params_0.json'))
+        test_load(name, path, doctor_params)
+        exit()
 
     name, path = dedicate_folder(
         args.name,
@@ -387,6 +630,10 @@ if __name__ == '__main__':
         end = time.perf_counter()
         print(f"NRMSE: {NRMSE}")
         print(f"Singlethreaded training took {end - start}")
+        print(f"[{name}] Performing the real boi test")
+        path = os.path.join(os.getcwd(), 'doctors', name)
+        real_test(name, path, doctor_params, verbal=True)
+        exit()
     
 
     

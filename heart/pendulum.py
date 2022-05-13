@@ -4,15 +4,17 @@ import os
 import scipy.io
 from os.path import join
 
-radius = 1
+radius = 1.0
 dt = 0.01
 g = 9.8
 D = 0.1
-m = 1
-
+m = 1.0
 
 states = None
+statesCart = None
 actions = None
+matlabStates = None
+oractions = None
 
 def dsdt(state, torque):
 
@@ -31,25 +33,149 @@ def dsdt(state, torque):
     return new_state
 
 
-def test_pendulum():
-    steps = 2000
-    state = np.array([[
-        0, 0.1
-    ]]).T
-
-    trajectory = [ np.squeeze(state) ]
-    torque = -0.5
-
-    for _ in range(steps):
-        state = dsdt(state, torque)
-        trajectory.append(np.squeeze(state))
-
-    
-    trajectory = np.array(trajectory).T
-    plt.plot(trajectory[0])
-    plt.plot(trajectory[1])
+def p(b, e):
+    phi = np.arctan2(statesCart[b:e, 1], statesCart[b:e, 2])
+    #phiMatlab = np.arctan2(matlabStates[b:e, 1, 0], matlabStates[b:e, 2, 0])
+    plt.plot(actions[b:e, 0], label="a")
+    plt.plot(phi, label="phi")
+    plt.plot(statesCart[b:e, 0], label="phiDot")
+    #plt.plot(phiMatlab, label="matlab")
+    #plt.plot(matlabStates[b:e, 0, 0], label="matlabDot")
+    plt.legend()
     plt.show()
 
+def test_pendulum():
+
+    global states, actions, statesCart
+    states = scipy.io.loadmat(join(os.getcwd(), 'data', 'states.mat'))["plantStateTrainDataCartPL"]
+    actions = scipy.io.loadmat(join(os.getcwd(), 'data', 'actions.mat'))["torqueTrainDataPL"][0]
+
+    statesCart = states.T
+    statesRad = np.copy(states)
+    statesRad[1] = np.arctan2(states[1], states[2])
+    statesRad = statesRad[:-1,:].T
+
+    statesRad = np.reshape(statesRad, (statesRad.shape[0], statesRad.shape[1], 1))
+    states = statesRad
+
+    state = np.array([
+        [0.0],
+        [np.pi]
+    ])
+
+    for i, teacher in enumerate(states):
+
+        torque = actions[i]
+        state = dsdt(state, torque)
+        diff = np.abs(state - teacher)
+
+        if (diff > 0.0001).any():
+            print(f"Error at {i} tick. Difference: {np.linalg.norm(diff)}")
+            return
+
+    print("Everything is tip top")
+
+def get_noise_seq(L, dur):
+    noiseseq = np.zeros(L)
+    thisnoise = 0
+    for i in range(L):
+        if np.random.random() < 1 / dur:
+            thisnoise = np.random.random()
+    
+        noiseseq[i] = thisnoise
+
+    return noiseseq
+
+def get_PID_targets(N):
+    Nwarmup = int(N / 10)
+    Nright = int(4.5 * N / 10)
+    # Nleft = N - Nwarmup - Nright;
+    target = np.pi * np.ones(Nwarmup)
+    target2 = np.mod(np.pi + 2 * np.pi * np.arange(1, (Nright + 1)) / Nright, 2 * np.pi)
+    target3 = np.mod(np.pi + 2 * np.pi * np.arange(Nright, -1, -1) / Nright, 2 * np.pi)
+    
+    target = np.append(target, target2)
+    target = np.append(target, target3)
+
+    return target
+
+def get_targets(N):
+    
+    t = np.arange(N)
+    fr = 2 * np.pi
+    target = np.sin(fr * 0.00006 * t + 15.81332) * 0.8 * fr + np.random.normal(loc=0, scale=0.01, size=N)
+
+    targetCart = np.zeros((N, 3))
+    targetCart[:,0] = np.zeros(N)
+    targetCart[:,1] = np.cos(target)
+    targetCart[:,2] = np.sin(target)
+    return targetCart
+    
+
+
+def get_training_data(experiment_name):
+    global states, actions, statesCart
+
+    Ileak = 0
+    Pgain = 10
+    Dgain = 100
+    Igain = 0
+    noiseLevel = 1
+    noiseDuration = 1
+    data_length = 10_000
+    
+    state = np.array([
+        [0.0],
+        [np.pi]
+    ])
+
+    states = [ ]
+    actions = []
+    noise = noiseLevel * get_noise_seq(data_length, noiseDuration)
+    target_states = get_PID_targets(data_length)
+
+    cur_err = prev_err = integrated_err = 0
+    
+    for i in range(data_length):
+        prev_err = cur_err
+
+        phi = state[1, 0]
+        cur_err = target_states[i] - phi
+
+        if cur_err > np.pi:
+            cur_err = cur_err - 2 * np.pi;
+        elif cur_err < - np.pi:
+            cur_err = cur_err + 2 * np.pi;
+    
+        integrated_err = (1 - Ileak) * integrated_err + cur_err
+        PIDout = Pgain * cur_err + Dgain * (cur_err - prev_err) + Igain * integrated_err
+        torque = PIDout + noise[i]
+
+        states.append(state)
+        state = dsdt(state, torque)
+        actions.append(torque)
+
+    states = np.squeeze(np.array(states))
+    
+    statesCart = np.zeros((states.shape[0], 3))
+    statesCart[:,0] = states[:,0]
+    statesCart[:,1] = np.cos(states[:,1])
+    statesCart[:,2] = np.sin(states[:,1])
+    
+    actions = np.array(actions)
+    actions = np.reshape(actions, (-1, 1))
+
+    path = join(os.getcwd(), 'hearts', experiment_name)
+    if not os.path.isdir(path):
+        os.mkdir(path)
+        os.mkdir(join(path, 'data'))
+
+    np.save(join(path, 'data', 'states_0_0.npy'), statesCart)
+    np.save(join(path, 'data', 'actions_0_0.npy'), actions)
+
+    print(f"[{experiment_name}] Data generated")
+
+    
 
 def convert_data(experiment_name):
     states = scipy.io.loadmat(join(os.getcwd(), 'data', 'states.mat'))["plantStateTrainDataCartPL"]
@@ -77,27 +203,40 @@ def show():
     actions = scipy.io.loadmat(join(os.getcwd(), 'data', 'actions.mat'))["torqueTrainDataPL"]
     a_min = np.min(actions)
     a_max = np.max(actions)
-    actions = (actions) / (a_max - a_min) * 2
-    print(np.min(actions), np.max(actions))
+    print(a_min, a_max)
+    actions = actions / ((a_max - a_min) / 2)
+
+    print((a_max - a_min) / 2)
+
+    timesteps = 10_000
+    t = np.arange(timesteps)
+    f = t * np.pi * 2 
+    target = np.sin(f * 0.0001) + 0.3 * np.sin(f * 0.003 + 0.13)
     X = states[1]
     Y = states[2]
 
     begin = 1000
-    window = 200
+    window = 400
     end = begin + window
 
-    plt.plot(states[0][begin:end], label="phidot")
+    #plt.plot(states[0][begin:end], label="phidot")
+    # plt.plot(np.arccos(X[begin:end]), label="phi")
+    # plt.plot(target[begin:end], label="target")
     plt.plot(X[begin:end], label="x")
     plt.plot(Y[begin:end], label="y")
-    plt.plot(actions[0][begin:end], label="torque")
+    # plt.plot(actions[0][begin:end], label="torque")
     plt.legend()
     plt.show()
     
 
 if __name__ == '__main__':
-    convert_data("pendulum")
+    #convert_data("pendulum")
     #show()
-
+    #test_pendulum()
+    #record_data("pendulum")
+    #get_training_data("pendulum")
+    plt.plot(get_targets(10_000))
+    plt.show()
 
     
 
