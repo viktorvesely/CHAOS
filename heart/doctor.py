@@ -202,15 +202,15 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(self.d, n_samples):
+            for i in range(self.d, n_samples - self.d):
 
                 # u_now = states[i]
                 # y = actions[i]
                 # u_future = states[i + self.d]
 
-                u_now = states[i - self.d]
-                y = actions[i - self.d]
-                u_future = states[i]
+                u_now = states[i]
+                y = actions[i + 1]
+                u_future = states[i + self.d]
 
                 if self.__is_pca:
                     yhat = self(u_now, u_future, self.non_pca_states[i - self.d])
@@ -249,7 +249,7 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(self.d, n_samples):
+            for i in range(0, n_samples - self.d):
 
 
                 # u_now =  states[i]
@@ -257,9 +257,9 @@ class Doctor:
                 # u_future = states[i + self.d]
 
                 
-                u_now =  states[i - self.d]
-                y = actions[i - self.d]            
-                u_future = states[i]
+                u_now =  states[i]
+                y = actions[i + 1]            
+                u_future = states[i + self.d]
 
                 self.nurse.on_training_tick(u_now, u_future, y)
 
@@ -287,6 +287,7 @@ class Doctor:
                     self.YX = temp
                 
                 else:
+                    # Slow change for the oncatination form
                     self.XX = self.XX + np.matmul(self.train_state, train_state_t)
                     self.YX = self.YX + np.matmul(y, train_state_t)
             
@@ -375,7 +376,7 @@ class Doctor:
         u = np.array([
             [u_now[0, 0]], [u_now[1, 0]], [u_now[2, 0]],
             [u_future[1, 0]], [u_future[2, 0]],
-            [1.0]
+            [0.0]
         ])
         # u = self.fast_append_and_insert_one(u_now, u_future)
 

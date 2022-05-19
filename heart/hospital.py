@@ -5,12 +5,13 @@ import json
 import pandas as pd
 from matplotlib import pyplot as plt
 from mpl_toolkits import mplot3d
+from regex import F
 
 import loader
 from loader import dedicate_folder, load_experiment_generator
 from settings import Params
 from doctor import Doctor
-from pendulum import dsdt
+from pendulum import dsdt, arctan2ToPendulum
 
 
 import cProfile
@@ -27,6 +28,7 @@ def get_parser():
     parser.add_argument('-p', '--parts', type=int, default=-1)
     parser.add_argument('-t', '--test', action="store_true", default=False)
     parser.add_argument('-tat', '--testtrain', action="store_true", default=False)
+    parser.add_argument('-nhr', '--nhyperruns', type=int, default=1)
 
     return parser  
 
@@ -34,10 +36,12 @@ def get_parser():
 def diplay_hyper_optimization(path):
     
     df = pd.read_csv(os.path.join(path, "results.csv"))
-    n_ivs = len(df.columns) - 1
+    n_ivs = len(df.columns) - 2
     ivs = list(df.columns.values)
     del ivs[ivs.index("nrmse")]
+    del ivs[ivs.index("var")]
     dv ="nrmse"
+    var = "var"
 
     if n_ivs == 2:
         fig = plt.figure(figsize=(7, 7))
@@ -57,6 +61,7 @@ def diplay_hyper_optimization(path):
     if n_cols == 1:
         iv = ivs[0]
         ax.scatter(df[iv], df[dv], marker="x")
+        ax.errorbar(df[iv], df[dv], yerr=df[var], fmt="o")
         ax.set_xlabel(iv)
         ax.set_ylabel(dv)
     # Case when there is only one row
@@ -68,6 +73,7 @@ def diplay_hyper_optimization(path):
     
         for index, iv in enumerate(ivs):
             ax[index].scatter(df[iv], df[dv], marker="x")
+            ax[index].errorbar(df[iv], df[dv], yerr=df[var], fmt="o")
             ax[index].set_xlabel(iv)
             ax[index].set_ylabel(dv)
     # Case of multiple rows
@@ -82,6 +88,7 @@ def diplay_hyper_optimization(path):
             j = index % n_cols
 
             ax[i, j].scatter(df[iv], df[dv], marker="x")
+            ax[i, j].errorbar(df[iv], df[dv], yerr=df[var], fmt="o")
             ax[i, j].set_xlabel(iv)
             ax[i, j].set_ylabel(dv)
     
@@ -137,7 +144,16 @@ def test(doctor, save=True):
     
     return calc_NRMSE(yhats, ys)
 
-def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-1, core=0):
+def train_single_thread(
+    name,
+    path,
+    doctor_pars,
+    verbal=True,
+    save=True, 
+    parts=-1, 
+    core=0, 
+    perform_test=True
+):
 
     doctor = boot_doctor_train(name, path, doctor_pars, core=core)
 
@@ -151,7 +167,10 @@ def train_single_thread(name, path, doctor_pars, verbal=True, save=True, parts=-
         parts=parts
     )
 
-    return test(doctor), doctor
+    if perform_test:
+        return test(doctor), doctor
+    else:
+        return None, doctor
 
 def train_single_thread_pool_wrapper(args):
     name, path, doctor_pars, parts, core = args
@@ -174,25 +193,36 @@ def train_single_thread_pool_wrapper(args):
     )
 
 def train_single_thread_test_pool_wrapper(args):
-    name, path, doctor_pars, parts, core = args
-    _, doctor = train_single_thread(
-        name,
-        path,
-        doctor_pars,
-        verbal=False,
-        save=False,
-        parts=parts,
-        core=core
-    )
+    name, path, doctor_pars, parts, core, N = args
 
+    scores = []
+
+    for i in range(N):
+
+        _, doctor = train_single_thread(
+            name,
+            path,
+            doctor_pars,
+            verbal=False,
+            save=False,
+            parts=parts,
+            core=core,
+            perform_test=False
+        )
+
+        NRMSE = real_test(name, path, doctor_pars, verbal=False, doctor=doctor)
+        scores.append(NRMSE)
+
+        print(f"[{name}] Core {core}: {i + 1} / {N}")
+
+    scores = np.array(scores)
     doctor.save_model(core=core)
-
-    NRMSE = real_test(name, path, doctor_pars, verbal=False, doctor=doctor)
 
     hyper_params = doctor_pars.get('__hyper_params')
     return (
-        NRMSE,
-        hyper_params
+        np.mean(scores),
+        hyper_params,
+        np.var(scores)
     )
 
 def generator(heart_name, core, n_files):
@@ -291,7 +321,6 @@ def generate_runs(n):
     
     runs = []
     
-
     while len(runs) < n:
         run = generate_run(grid)
         
@@ -343,7 +372,14 @@ def update_params(run, pars):
         pars[key] = value
 
 
-def hyper_optimization_single_thread_training(name, path, hyper_cores, original_pars, parts=-1):
+def hyper_optimization_single_thread_training(
+    name,
+    path,
+    hyper_cores,
+    original_pars,
+    parts=-1,
+    nRuns=1
+):
     import copy
     import time
 
@@ -359,7 +395,7 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
         update_params(run, doctor_pars_dict)
         doctor_pars = Params().from_dict(doctor_pars_dict)
         doctor_pars.params()["__hyper_params"] = run
-        pool_args.append([name, path, doctor_pars, parts, i])
+        pool_args.append([name, path, doctor_pars, parts, i, nRuns])
     n_runs = len(runs)
 
     print(f"{n_runs} run(s) generated!")
@@ -373,10 +409,11 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
     print(f"Hyperoptimization finished in {duration}")
     print(f"Time per run: {duration / n_runs}")
 
-    ranked = sorted(results, key=lambda result: result[0])
+    
+    ranked = sorted(results, key=lambda result: np.mean(result[0]))
 
     keys = runs[0].keys()
-    export = "nrmse"
+    export = "nrmse,var"
 
     for key in keys:
         value = ranked[0][1][key]
@@ -402,9 +439,9 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
     export += "\n"
 
     for run in ranked:
-        NRMSE, hp = run
+        NRMSE, hp, var = run
         print(f"{NRMSE} : {hp}")
-        export += str(NRMSE)
+        export +=  f"{NRMSE},{var}"
         for key in keys:
             value = hp[key]
             if isinstance(value, list):
@@ -417,7 +454,6 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
 
         export += "\n"    
     
-
     with open(os.path.join(path, 'results.csv'), "w", encoding='utf-8') as f:
         f.write(export)
 
@@ -425,15 +461,18 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
     
     
 def real_test(name, path, pars, verbal=False, doctor=None):
+    global trajectory, actions
+
     from pendulum import get_targets
 
     timesteps = 10_000
     washout = 15
-    t = np.arange(timesteps)
+    rescaling = 42.7422917189365
+    # t = np.arange(timesteps)
 
     targets = get_targets(timesteps)
-    #targets = np.load("./hearts/pendulum/data/states_0_0.npy")
-    oractions = np.load("./hearts/pendulum/data/actions_0_0.npy")
+    # targets = np.load("./hearts/pendulum/data/states_0_0.npy")
+    # oractions = np.load("./hearts/pendulum/data/actions_0_0.npy")
     targets = np.reshape(targets, (targets.shape[0], targets.shape[1], 1))
 
     # state = np.array([
@@ -441,10 +480,16 @@ def real_test(name, path, pars, verbal=False, doctor=None):
     #     [np.arctan2(targets[0, 2, 0], targets[0, 1, 0])]
     # ])
 
+    phi0 = np.arctan2(targets[0, 2], targets[0, 1])[0]
+    if phi0 < 0:
+        phi0 = 2 * np.pi - phi0
+
     state = np.array([
         [0],
-        [np.pi]
+        [phi0]
     ])
+
+    
 
     actions = [ ]
     trajectory = [ ]
@@ -482,18 +527,18 @@ def real_test(name, path, pars, verbal=False, doctor=None):
 
         action = doctor(u_now, u_ref)
         
-        torque = action[0, 0]
+        torque = action[0, 0] * rescaling
 
-        u = np.array([
-            u_now[0, 0], u_now[1, 0], u_now[2, 0],
-            u_ref[1, 0], u_ref[2, 0],
-            1.0
-        ])
+        # u = np.array([
+        #     u_now[0, 0], u_now[1, 0], u_now[2, 0],
+        #     u_ref[1, 0], u_ref[2, 0],
+        #     1.0
+        # ])
 
         if i < washout:
             torque = 0
         
-        torque = np.clip(torque, -40.0, 40.0)
+        torque = np.clip(torque, -500.0, 500.0)
         #torque = oractions[i, 0]
 
         trajectory.append(state)
@@ -510,28 +555,40 @@ def real_test(name, path, pars, verbal=False, doctor=None):
         np.cos(trajectory[1]),
         np.sin(trajectory[1])
     ])
+
     targetCart = np.array([
         targets[1, :], targets[2, :]
     ])
 
+    targetRad = np.arctan2(targets[2, :], targets[1, :])
+    targetRad = arctan2ToPendulum(targetRad)
+
     actions = np.array(actions).T
       
     if verbal:
-        print(f"NRMSE state diff: {calc_NRMSE(trajectoryCart, targetCart)}")
+        print(f"RMSE state diff: {calc_RMSE(trajectoryCart, targetCart)}")
 
         begin = 0
         window = 10_000
         end = begin + window
 
-        plt.plot(trajectoryCart[0][begin:end], label="x_real", linewidth=4)
-        plt.plot(trajectoryCart[1][begin:end], label="y_real", linewidth=4)
-        plt.plot(targets[1][begin:end], label="x_target", linewidth=1)
-        plt.plot(targets[2][begin:end], label="y_target", linewidth=1)
+        fig, ax = plt.subplots(2, 2, figsize=(18, 6), dpi=90)
+        ax[0, 0].plot(trajectoryCart[0][begin:end], label="x real", linewidth=1)
+        ax[0, 0].plot(trajectoryCart[1][begin:end], label="y real", linewidth=1)
+        ax[0, 0].plot(targets[1][begin:end], label="x target", linewidth=1)
+        ax[0, 0].plot(targets[2][begin:end], label="y target", linewidth=1)
+        ax[0, 0].legend()
+
+        ax[0, 1].plot(trajectory[1][begin:end], label="phi real", linewidth=1)
+        ax[0, 1].plot(targetRad[begin:end], label="phi target", linewidth=1)
+        ax[0, 1].legend()
+
+        ax[1, 0].plot(np.squeeze(actions), label="actions")
+        ax[1, 0].legend()
         #plt.plot(actions[begin:end], label="actions")
-        plt.legend()
         plt.show()
 
-    return calc_NRMSE(trajectoryCart, targetCart)
+    return calc_RMSE(trajectoryCart, targetCart)
 
 
 def calc_NRMSE(yhat, y):
@@ -539,14 +596,24 @@ def calc_NRMSE(yhat, y):
     Axis 0: Features
     Axis 1: Time
     """
-    delta = np.mean((yhat - y) * (yhat - y), axis=1)
+    MSE = np.mean((yhat - y) * (yhat - y), axis=1)
     variances = np.var(y, axis=1)
-    NMSE = delta / variances
+    NMSE = MSE / variances
     NRMSE = np.sqrt(NMSE)
     NRMSE = np.mean(NRMSE)
 
     return NRMSE
 
+def calc_RMSE(yhat, y):
+    """
+    Axis 0: Features
+    Axis 1: Time
+    """
+    MSE = np.mean((yhat - y) * (yhat - y), axis=1)
+    RMSE = np.sqrt(MSE)
+    RMSE = np.mean(RMSE)
+
+    return RMSE
 
 def test_load(name, path, pars):
     d = pars.get("d")
@@ -581,7 +648,7 @@ if __name__ == '__main__':
         print(f"[{name}] performing the real boi test")
         path = os.path.join(os.getcwd(), 'doctors', name)
         doctor_params = Params(os.path.join(path, 'doctor_params_0.json'))
-        real_test(name, path, doctor_params)
+        real_test(name, path, doctor_params, verbal=True)
         exit()
 
     if args.testtrain:
@@ -612,6 +679,7 @@ if __name__ == '__main__':
                 path,
                 args.hypercores,
                 doctor_params,
+                nRuns=args.nhyperruns,
                 parts=args.parts
             )
   

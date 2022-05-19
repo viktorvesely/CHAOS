@@ -58,7 +58,7 @@ class Nurse:
         # self.local_neurons = []
 
 
-        self.n_i = np.arange(x_size)
+        self.n_i = np.random.choice(np.arange(x_size), size=10)
 
         self.u_i = np.arange(u_size)
         
