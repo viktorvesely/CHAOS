@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Fresh",
+            "type": "python",
+            "request": "launch",
+            "program": "./fresh/master.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "Current File",
             "type": "python",
             "request": "launch",
