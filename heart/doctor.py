@@ -85,6 +85,7 @@ class Doctor:
         self.YX = np.zeros((self.n_output, self.n_readouts))
         self.YXC = np.zeros((self.n_output, self.n_readouts))
 
+
         self.nurse = Nurse(self, 
             self.w_in.shape[1],
             self.w.shape[0],
@@ -204,12 +205,8 @@ class Doctor:
 
             for i in range(self.d, n_samples - self.d):
 
-                # u_now = states[i]
-                # y = actions[i]
-                # u_future = states[i + self.d]
-
                 u_now = states[i]
-                y = actions[i + 1]
+                y = actions[i]
                 u_future = states[i + self.d]
 
                 if self.__is_pca:
@@ -251,14 +248,9 @@ class Doctor:
 
             for i in range(0, n_samples - self.d):
 
-
-                # u_now =  states[i]
-                # y = actions[i]            
-                # u_future = states[i + self.d]
-
                 
                 u_now =  states[i]
-                y = actions[i + 1]            
+                y = actions[i]            
                 u_future = states[i + self.d]
 
                 self.nurse.on_training_tick(u_now, u_future, y)
@@ -373,11 +365,32 @@ class Doctor:
         self.u_now = u_now
         self.u_future = u_future
         
+        input_scaling = np.array([
+            [0.0020],
+            [2.0000],
+            [2.0000],
+            [2.0000],
+            [2.0000],
+            [0.0000]
+        ])
+
+        input_shift = np.array([
+            [0.0000],
+            [2.0000],
+            [2.0000],
+            [2.0000],
+            [2.0000],
+            [0.0000]
+        ])
+
         u = np.array([
             [u_now[0, 0]], [u_now[1, 0]], [u_now[2, 0]],
             [u_future[1, 0]], [u_future[2, 0]],
             [0.0]
         ])
+
+        u = input_scaling * u + input_shift
+
         # u = self.fast_append_and_insert_one(u_now, u_future)
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(

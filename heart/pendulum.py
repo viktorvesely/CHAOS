@@ -4,12 +4,6 @@ import os
 import scipy.io
 from os.path import join
 
-radius = 1.0
-dt = 0.01
-g = 9.8
-D = 0.1
-m = 1.0
-
 states = None
 statesCart = None
 actions = None
@@ -17,18 +11,21 @@ matlabStates = None
 oractions = None
 
 def dsdt(state, torque):
+    dt = 0.01
+    r = 1
+    m = 1
+    g = 9.8
+    D = 0.1
 
-    phiDot = state[0, 0]
     phi = state[1, 0]
+    phiDot = state[0, 0]
 
-    delta = np.array([[
-        torque / (radius * m) + g * np.sin(phi) / radius - D * phiDot,
-        phiDot
-    ]]).T
+    new_state = state +  dt * np.array([
+        [ torque / (r * m) + g * np.sin(phi) / r - D * phiDot ],
+        [ phiDot ]
+    ])
 
-    new_state = state + dt * delta
-
-    new_state[1, 0] = new_state[1, 0] % (np.pi * 2)
+    new_state[1, 0] = new_state[1, 0] % (2 * np.pi)
 
     return new_state
 
@@ -75,49 +72,26 @@ def test_pendulum():
 
     print("Everything is tip top")
 
-def get_noise_seq(L, dur):
-    noiseseq = np.zeros(L)
+def get_noise_seq(N, duration):
+    noiseseq = np.zeros(N)
     thisnoise = 0
-    for i in range(L):
-        if np.random.random() < 1 / dur:
+    for i in range(N):
+        if np.random.random() < (1 / duration):
             thisnoise = np.random.random()
-    
         noiseseq[i] = thisnoise
 
     return noiseseq
 
 def get_PID_targets(N):
 
-    if N / 2 != int(N / 2):
-        raise ValueError("N has to be divisible by 2")
-
-    # N = int(N / 2)
-
-    Nwarmup = int(N / 10)
-    Nright = int(4.5 * N / 10)
-    # Nleft = N - Nwarmup - Nright;
+    Nwarmup = int(np.floor(N / 10))
+    Nright = int(np.floor(4.5 * N / 10))
     target = np.pi * np.ones(Nwarmup)
-    target2 = np.mod(np.pi + 2 * np.pi * np.arange(1, (Nright + 1)) / Nright, 2 * np.pi)
+    target2 = np.mod(np.pi + 2 * np.pi * np.arange(1, Nright + 1) / Nright, 2 * np.pi)
     target3 = np.mod(np.pi + 2 * np.pi * np.arange(Nright, -1, -1) / Nright, 2 * np.pi)
     
     target = np.append(target, target2)
     target = np.append(target, target3)
-   
-
-    # t = np.arange(N)
-    # fr = 2 * np.pi
-    # target_next = (
-    #     np.sin(fr * 0.00006 * t + 15.81332) * 0.8
-    #     + np.cos(fr * 0.0002 * t + 9.121203123) * 0.2
-    # )
-
-    # t_min = np.min(target_next)
-    # t_max = np.max(target_next)
-
-    # target_next = (target_next - t_min) / (t_max - t_min)
-    # target_next = target_next * 2 * np.pi
-
-    # target = np.append(target, target_next)
 
     return target
 
@@ -126,33 +100,32 @@ def get_targets(N):
     t = np.arange(N)
     fr = 2 * np.pi
     target = (
-        np.sin(fr * 0.00006 * t + 15.81332) * 0.8
-        + np.random.normal(loc=0, scale=0.003, size=N)
-        + np.cos(fr * 0.0002 * t + 9.121203123) * 0.2
+        np.ones(N) * np.pi / 4 +
+        np.sin(fr * 0.0003 * t + 2.1321249) * 0.35 +
+        np.cos(fr * 0.001 * t + 1399.34) * 0.15 +
+        np.sin(fr * 0.00002 * t  + 847746.2) * 0.6 +
+        np.sin(fr * 0.0001 * t + 1.345) * 1.2 + 
+        np.random.random(N) * 0.05
     )
 
-    t_min = np.min(target)
-    t_max = np.max(target)
+    parts = 5
+    if int(N / parts) != N / parts:
+        raise ValueError(f"N has to be divisible by {parts}")
+    n = int(N / parts)
 
-    target = (target - t_min) / (t_max - t_min)
-    target = target * 2 - 1
-    target = target * np.pi
-
+    # target = np.ones(N)
+    # base = 0
+    # for i in range(parts):
+    #     end = (i + 1) * n
+    #     target[base:end] = np.ones(n) * np.random.random() * 2 * np.pi
+    #     base = end
+        
     targetCart = np.zeros((N, 3))
-    targetCart[:,0] = np.zeros(N)
-    targetCart[:,1] = np.cos(target)
-    targetCart[:,2] = np.sin(target)
-
-
-    #target = np.ones(N) * np.pi / 4 + np.sin(fr * 0.0001 * t + 2.1321249) * 0.15
-    target = np.ones(N) * np.pi / 4 + np.sin(fr * 0.0003 * t + 2.1321249) * 0.15
-    targetCart[:,0] = np.zeros(N)
     targetCart[:,1] = np.cos(target)
     targetCart[:,2] = np.sin(target)
 
     return targetCart
     
-
 
 def arctan2ToPendulum(phi):
     phi = np.copy(phi)
@@ -163,62 +136,60 @@ def arctan2ToPendulum(phi):
 def get_training_data(experiment_name, data_length):
     global states, actions, statesCart
 
-    Ileak = 0
-    Pgain = 10
-    Dgain = 100
-    Igain = 0
-    noiseLevel = 30#1
-    noiseDuration = 1
-    
+    N = data_length
+    torqueNoiseLevel = 30; torqueNoiseDuration = 1;
+    Pgain = 10; Dgain = 100; Igain = 0; Ileak = 0.0;
+
     state = np.array([
-        [0.0],
+        [0],
         [np.pi]
     ])
 
-    states = [ ]
+    states = []
     actions = []
-    noise = noiseLevel * get_noise_seq(data_length, noiseDuration)
-    target_states = get_PID_targets(data_length)
 
-    cur_err = prev_err = integrated_err = 0
+    c_err = p_err = i_err = 0
+
+    noise = torqueNoiseLevel * (get_noise_seq(N, torqueNoiseDuration) - 1)
+    targets = get_PID_targets(N)
+
+    for t in range(N):
     
-    for i in range(data_length):
-        prev_err = cur_err
+        p_err = c_err
+        c_err = targets[t] - state[1, 0]
 
-        phi = state[1, 0]
-        cur_err = target_states[i] - phi
+        if c_err > np.pi:
+            c_err = c_err - 2 * np.pi
+        elif c_err < - np.pi:
+            c_err = c_err + 2 * np.pi
 
-        if cur_err > np.pi:
-            cur_err = cur_err - 2 * np.pi;
-        elif cur_err < - np.pi:
-            cur_err = cur_err + 2 * np.pi;
-    
-        integrated_err = (1 - Ileak) * integrated_err + cur_err
-        PIDout = Pgain * cur_err + Dgain * (cur_err - prev_err) + Igain * integrated_err
-        torque = PIDout + noise[i]
-
-        #states.append(state)
-        state = dsdt(state, torque)
+        i_err = (1 - Ileak) * i_err + c_err
+        PIDout = (
+            Pgain * c_err + 
+            Dgain * (c_err - p_err) + Igain * i_err
+        )
+        
+        torque = PIDout + noise[t]
         states.append(state)
+        state = dsdt(state, torque)
+        #states.append(state)
         actions.append(torque)
-
-    states = np.squeeze(np.array(states))
     
-    statesCart = np.zeros((states.shape[0], 3))
-    statesCart[:,0] = states[:,0]
-    statesCart[:,1] = np.cos(states[:,1])
-    statesCart[:,2] = np.sin(states[:,1])
+    states = np.array(states)
+    
+    statesCart = np.zeros((states.shape[0], 3, 1))
+    statesCart[:,0,:] = states[:, 0, :]
+    statesCart[:,1,:] = np.cos(states[:, 1, :])
+    statesCart[:,2,:] = np.sin(states[:, 1, :])
     
     actions = np.array(actions)
-    actions = np.reshape(actions, (-1, 1))
-
-    a_max = np.max(actions)
     a_min = np.min(actions)
-
-    scaling_const = ((a_max - a_min / 2))
-    actions = actions / scaling_const
-    print(f"New min: {np.min(actions)}; max: {np.max(actions)}")
-    print(f"Rescaling constant {scaling_const}")
+    a_max = np.max(actions)
+    normalizing_const = ((a_max - a_min) / 2)
+    actions = actions / normalizing_const
+    print(f"New min: {np.min(actions)}, max: {np.max(actions)}")
+    print(f"Rescale: {normalizing_const}")
+    actions = np.reshape(actions, (actions.shape[0], 1, 1))
 
     path = join(os.getcwd(), 'hearts', experiment_name)
     if not os.path.isdir(path):
@@ -231,6 +202,7 @@ def get_training_data(experiment_name, data_length):
     print(f"[{experiment_name}] Data generated")
 
     show()
+
 
     
 

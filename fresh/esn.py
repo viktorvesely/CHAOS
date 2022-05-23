@@ -3,23 +3,13 @@ import scipy.sparse as sp
 
 class ESN:
 
-    def __init__(self):
+    def __init__(self, rescaling):
 
-        self.beta = 0.0001
-        self.washout = 30
+        self.beta = 0.000001
+        self.washout = 50
         self.spectral_radius = 0.5
-        self.w_in_scaling = 1
-        self.u_scaling = np.array([
-            [0.002],
-            [2.0],
-            [2.0]
-        ])
-        self.u_shift = np.array([
-            [0.0],
-            [2.0],
-            [2.0]
-        ])
-        self.d = 1
+        self.w_in_scaling = 0.7
+        self.d = 2
 
         self.in_size = 5
         self.out_size = 1
@@ -29,40 +19,85 @@ class ESN:
 
         self.leakyness_max = 0
         self.leakyness_min = 0
+        self.rescaling = rescaling
 
         self.leaky_mask = np.random.random((self.n_reservior, 1)) * (self.leakyness_max - self.leakyness_min) + self.leakyness_min
 
-        # self.w = np.zeros((self.n_reservior, self.n_reservior))
-        # for i in range(self.n_reservior):
-        #     for j in range(self.n_reservior):
-        #         if np.random.random() <= self.connectivity:
-        #             self.w[i, j] = np.random.random()
-        # current_sr = np.max(np.abs(np.linalg.eigvals(self.w)))
-        # self.w = self.w / current_sr * self.spectral_radius
-        sigma = 1
-        w = sp.rand(
-                self.n_reservior, self.n_reservior,
-                density= 1 - self.connectivity,
-                format="csr"
-            ) * sigma * 2 
-
-        w.data = w.data - sigma
-        self.w = w.toarray()
+        self.w = np.zeros((self.n_reservior, self.n_reservior))
+        for i in range(self.n_reservior):
+            for j in range(self.n_reservior):
+                if np.random.random() <= self.connectivity:
+                    self.w[i, j] = np.random.random()
         current_sr = np.max(np.abs(np.linalg.eigvals(self.w)))
         self.w = self.w / current_sr * self.spectral_radius
+
+        # sigma = 1
+        # w = sp.rand(
+        #         self.n_reservior, self.n_reservior,
+        #         density= 1 - self.connectivity,
+        #         format="csr"
+        #     ) * sigma * 2 
+
+        # w.data = w.data - sigma
+        # self.w = w.toarray()
+        # current_sr = np.max(np.abs(np.linalg.eigvals(self.w)))
+        # self.w = self.w / current_sr * self.spectral_radius
                 
         self.w_in = np.random.random((self.n_reservior, self.in_size)) * 2 - 1
         self.w_in = self.w_in * self.w_in_scaling
 
         self.w_out = np.ones((self.out_size, self.n_readouts))
 
-        self.x = np.zeros((self.n_reservior, 1))
+        self.x = self.initial_state()
         self.u = None
         self.train_state = None
 
         self.us = []
         self.neurons = []
     
+    def test(self, targets, update):
+
+        N = 10_000
+        self.x = self.initial_state()
+
+        state = np.array([
+            [0.0],
+            [np.pi]
+        ])
+
+        self.trajectory = []
+
+        for i in range(N):
+            phiDot = state[0, 0]
+            phi = state[1, 0]
+
+            u_now = np.array([
+                [phiDot],
+                [np.cos(phi)],
+                [np.sin(phi)]
+            ])
+
+            if self.d + i >= targets.shape[0]:
+                break
+
+            u_ref = targets[i + self.d]
+
+            action = self(u_now, u_ref)
+            
+            torque = action[0, 0] * self.rescaling
+
+            if i < self.washout:
+                torque = 0
+
+            torque = np.clip(torque, -500, 500)
+            
+            state = update(state, torque)
+            self.trajectory.append(state)
+        
+        
+
+    def initial_state(self):
+        return np.zeros((self.n_reservior, 1))
 
     def test_train(self, states, actions):
         n_samples = states.shape[0] - self.d
@@ -70,12 +105,17 @@ class ESN:
         ys = []
         yhats = []
 
-        for i in range(n_samples - self.d):
+        self.x = self.initial_state()
+
+        for i in range(n_samples):
             u_now = states[i]
-            y = actions[i + 1]
+            y = actions[i]
             u_future = states[i + self.d]
 
             yhat = self(u_now, u_future)
+
+            if i < self.washout:
+                continue
 
             ys.append(y)
             yhats.append(yhat)
@@ -83,7 +123,8 @@ class ESN:
         ys = np.squeeze(np.array(ys)).T
         yhats = np.squeeze(np.array(yhats)).T
         
-        MSE = np.mean((ys - yhats) ** 2)
+        print(yhats.shape, ys.shape)
+        MSE = np.mean((ys - yhats) *  (ys - yhats))
         var = np.var(ys)
         NMSE = MSE / var
         NRMSE = np.sqrt(NMSE)
@@ -98,14 +139,14 @@ class ESN:
         n_samples = states.shape[0] - self.d
         X = np.zeros((self.n_readouts, n_samples))
         Y = np.zeros((self.out_size, n_samples))
-        XX = np.zeros((self.n_readouts, self.n_readouts))
-        YX = np.zeros((self.out_size, self.n_readouts))
         head = 0
 
-        for i in range(n_samples - self.d):
+        self.x = self.initial_state()
+
+        for i in range(n_samples):
             
             u_now = states[i]
-            y = actions[i + 1]
+            y = actions[i]
             u_future = states[i + self.d]
 
             self.neurons.append(self.x)
@@ -143,6 +184,23 @@ class ESN:
         
     def __call__(self, u_now, u_future):
         
+        input_scaling = np.array([
+            [0.0020],
+            [2.0000],
+            [2.0000],
+            [2.0000],
+            [2.0000]
+        ])
+
+        input_shift = np.array([
+            [0.0000],
+            [2.0000],
+            [2.0000],
+            [2.0000],
+            [2.0000]
+        ])
+
+
         self.u = np.zeros((self.in_size, 1))
         self.u[:u_now.size] = u_now
         self.u[u_now.size:] = np.array([
@@ -150,7 +208,8 @@ class ESN:
             [u_future[2, 0]]
         ])
 
-        
+        self.u = input_scaling * self.u + input_shift
+    
         self.x = np.tanh(
             np.matmul(self.w_in, self.u) +
             np.matmul(self.w, self.x) 

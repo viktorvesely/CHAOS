@@ -34,6 +34,40 @@ def get_PID_targets(N):
 
     return target
 
+def get_targets(N):
+
+    t = np.arange(N)
+    fr = 2 * np.pi
+    target = (
+        np.ones(N) * np.pi / 4 +
+        np.sin(fr * 0.0003 * t + 2.1321249) * 0.35 +
+        np.cos(fr * 0.001 * t + 1399.34) * 0.15 +
+        np.sin(fr * 0.00002 * t  + 847746.2) * 0.6 +
+        np.sin(fr * 0.0001 * t + 1.345) * 1.2 + 
+        np.random.random(N) * 0.05
+    )
+
+    parts = 5
+    if int(N / parts) != N / parts:
+        raise ValueError(f"N has to be divisible by {parts}")
+    n = int(N / parts)
+
+    # target = np.ones(N)
+    # base = 0
+    # for i in range(parts):
+    #     end = (i + 1) * n
+    #     target[base:end] = np.ones(n) * np.random.random() * 2 * np.pi
+    #     base = end
+        
+    targetCart = np.zeros((N, 3))
+    targetCart[:,1] = np.cos(target)
+    targetCart[:,2] = np.sin(target)
+    targetCart = np.reshape(targetCart, (N, 3, 1))
+
+    return targetCart
+
+
+
 def get_noise_seq(N, duration):
     noiseseq = np.zeros(N)
     thisnoise = 0
@@ -79,8 +113,9 @@ def generate_training_data(N):
         )
         
         torque = PIDout + noise[t]
-        state = dsdt(state, torque)
         states.append(state)
+        state = dsdt(state, torque)
+        #states.append(state)
         actions.append(torque)
     
     states = np.array(states)
@@ -95,11 +130,10 @@ def generate_training_data(N):
     a_max = np.max(actions)
     normalizing_const = ((a_max - a_min) / 2)
     actions = actions / normalizing_const
-    print(f"Rescaling factor {normalizing_const}")
     print(f"New min: {np.min(actions)}, max: {np.max(actions)}")
     actions = np.reshape(actions, (actions.shape[0], 1, 1))
 
-    return statesCart, actions
+    return statesCart, actions, normalizing_const
 
 
 
