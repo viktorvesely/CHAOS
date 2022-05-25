@@ -235,6 +235,10 @@ class Doctor:
         if verbal:
             print("Training network")
         
+        X = []
+        Y = []
+        head = 0
+
         core = 1
         for states, actions in generator:
             
@@ -278,16 +282,22 @@ class Doctor:
                     self.YX = temp
                 
                 else:
-                    # Slow change for the oncatination form
-                    self.XX = self.XX + np.matmul(self.train_state, train_state_t)
-                    self.YX = self.YX + np.matmul(y, train_state_t)
+                    X.append(np.squeeze(self.train_state))
+                    Y.append(np.squeeze(y))
             
             end = time.perf_counter()
             if verbal:
                 print(f"Core {core} done in {end - start}")
             core += 1
-  
-        self.calc_w_out()
+
+        X_T = np.array(X)
+        Y = np.array(Y).T
+        Y = np.reshape(Y, (1, -1))
+        X = X_T.T
+
+        inverse = np.linalg.inv(np.matmul(X, X_T) + self.beta * np.identity(self.n_readouts))
+        self.w_out = np.matmul(np.matmul(Y, X_T), inverse)
+    
 
         if save:
             self.save_model()
