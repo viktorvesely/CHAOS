@@ -2,20 +2,15 @@ from re import S
 from matplotlib import pyplot as plt
 import time
 import numpy as np
-import os
-
-from os.path import join
 
 import esn
 import pendulum
-import esn_original
-
 
 def p(b, w):
 
     e = b + w + 1
 
-    fig, ax = plt.subplots(4, 1, figsize=(12, 10), dpi=90)
+    fig, ax = plt.subplots(3, 1, figsize=(12, 10), dpi=90)
 
     ax[0].plot(controller.us[b:e])
     ax[0].set_title("Input")
@@ -30,18 +25,27 @@ def p(b, w):
     ax[2].plot(ys[b:e], label="Teacher")
     ax[2].plot(yhats[b:e], label="Prediction")
     ax[2].legend()
+    plt.show(block=False)
+
+    fig, ax = plt.subplots(2, 1, figsize=(12, 10), dpi=90)
 
     traj = np.squeeze(controller.trajectory)
     trajCart = np.zeros((traj.shape[0], 2))
     trajCart[:, 0] = np.cos(traj[:,1])
     trajCart[:, 1] = np.sin(traj[:,1])
     target = np.squeeze(pendulum.get_targets(10_000))
-    ax[3].set_title("Test_traj")
-    ax[3].plot(trajCart[b:e, 0], label="real x", linewidth=3)
-    ax[3].plot(trajCart[b:e, 1], label="real y", linewidth=3)
-    ax[3].plot(target[b:e, 1], label="target x")
-    ax[3].plot(target[b:e, 2], label="target y")
-    ax[3].legend()
+    ax[0].set_title("Test_traj")
+    ax[0].plot(trajCart[b:e, 0], label="real x", linewidth=3)
+    ax[0].plot(trajCart[b:e, 1], label="real y", linewidth=3)
+    ax[0].plot(target[b:e, 1], label="target x")
+    ax[0].plot(target[b:e, 2], label="target y")
+    ax[0].legend()
+    
+
+    actions = np.array(controller.actions)
+    ax[1].set_title("Actions")
+    ax[1].plot(actions[b:e])
+
     plt.show(block=True)
 
 

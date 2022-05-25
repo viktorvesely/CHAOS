@@ -466,7 +466,7 @@ def real_test(name, path, pars, verbal=False, doctor=None):
     from pendulum import get_targets
 
     timesteps = 10_000
-    washout = 15
+    washout = 50
     rescaling = 28.696154954529547
     # t = np.arange(timesteps)
 

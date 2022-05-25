@@ -104,8 +104,7 @@ def get_targets(N):
         np.sin(fr * 0.0003 * t + 2.1321249) * 0.35 +
         np.cos(fr * 0.001 * t + 1399.34) * 0.15 +
         np.sin(fr * 0.00002 * t  + 847746.2) * 0.6 +
-        np.sin(fr * 0.0001 * t + 1.345) * 1.2 + 
-        np.random.random(N) * 0.05
+        np.sin(fr * 0.0001 * t + 1.345) * 1.2
     )
 
     parts = 5

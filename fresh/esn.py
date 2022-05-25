@@ -66,6 +66,7 @@ class ESN:
         ])
 
         self.trajectory = []
+        self.actions = []
 
         for i in range(N):
             phiDot = state[0, 0]
@@ -91,8 +92,10 @@ class ESN:
 
             torque = np.clip(torque, -500, 500)
             
+            self.actions.append(torque)
             state = update(state, torque)
             self.trajectory.append(state)
+
         
         
 
