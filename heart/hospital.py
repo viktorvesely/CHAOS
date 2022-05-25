@@ -5,7 +5,6 @@ import json
 import pandas as pd
 from matplotlib import pyplot as plt
 from mpl_toolkits import mplot3d
-from regex import F
 
 import loader
 from loader import dedicate_folder, load_experiment_generator

@@ -96,7 +96,7 @@ def get_PID_targets(N):
     return target
 
 def get_targets(N):
-    
+
     t = np.arange(N)
     fr = 2 * np.pi
     target = (
@@ -104,7 +104,8 @@ def get_targets(N):
         np.sin(fr * 0.0003 * t + 2.1321249) * 0.35 +
         np.cos(fr * 0.001 * t + 1399.34) * 0.15 +
         np.sin(fr * 0.00002 * t  + 847746.2) * 0.6 +
-        np.sin(fr * 0.0001 * t + 1.345) * 1.2
+        np.sin(fr * 0.0001 * t + 1.345) * 1.2 #+ 
+        #np.random.random(N) * 0.05
     )
 
     parts = 5
@@ -122,6 +123,7 @@ def get_targets(N):
     targetCart = np.zeros((N, 3))
     targetCart[:,1] = np.cos(target)
     targetCart[:,2] = np.sin(target)
+    targetCart = np.reshape(targetCart, (N, 3, 1))
 
     return targetCart
     

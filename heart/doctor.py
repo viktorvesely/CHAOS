@@ -1,4 +1,3 @@
-from re import S
 import numpy as np
 import os
 from scipy import sparse as sp
