@@ -5,7 +5,6 @@ import json
 import pandas as pd
 from matplotlib import pyplot as plt
 from mpl_toolkits import mplot3d
-from regex import F
 
 import loader
 from loader import dedicate_folder, load_experiment_generator
@@ -466,8 +465,8 @@ def real_test(name, path, pars, verbal=False, doctor=None):
     from pendulum import get_targets
 
     timesteps = 10_000
-    washout = 15
-    rescaling = 42.7422917189365
+    washout = 50
+    rescaling = 28.696154954529547
     # t = np.arange(timesteps)
 
     targets = get_targets(timesteps)
@@ -511,6 +510,8 @@ def real_test(name, path, pars, verbal=False, doctor=None):
         )
 
         doctor.load_model()
+    
+    doctor.x = doctor.initial_state()
 
     for i in range(timesteps):
         phi = state[1, 0]
@@ -528,12 +529,6 @@ def real_test(name, path, pars, verbal=False, doctor=None):
         action = doctor(u_now, u_ref)
         
         torque = action[0, 0] * rescaling
-
-        # u = np.array([
-        #     u_now[0, 0], u_now[1, 0], u_now[2, 0],
-        #     u_ref[1, 0], u_ref[2, 0],
-        #     1.0
-        # ])
 
         if i < washout:
             torque = 0
