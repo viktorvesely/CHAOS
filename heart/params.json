@@ -1,6 +1,6 @@
 {
     "t_start": 0,
-    "t_end": 10000,
+    "t_end": 1200000,
     "BPS": 1.7,
     "stim_start": 1,
     "stim_end": 40,
@@ -34,7 +34,7 @@
     "min_action": 0.0,
     "max_Vm": 50.0,
     "min_Vm": -90.0,
-    "actor": "",
+    "actor": "white",
     "noise_sinus_settings": {
         "frequency": 70
     },

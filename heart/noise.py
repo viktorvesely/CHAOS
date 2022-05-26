@@ -27,14 +27,18 @@ class SinusNoise:
 # Code from https://stackoverflow.com/a/39032946/7020366
 class WhiteNoise:
     
-    block_duration = 10_000 # ms
+    block_duration = 12_000 # ms
     washout = 200
+    amp_max = 3.0
+    amp_min = 1.0
+    cut_max = 5
+    cut_min = 2
 
     def __init__(self, minAction, maxAction, numActions, settings):
-        self.max = maxAction
+        self.max = maxAction    
         self.min = minAction
         self.numActions = numActions
-        self.cutoff = settings['cutoff']
+        self.cutoff = self.get_cut_off()
         self.order = settings['order']
         self.fs = settings['fs']
         self.mean_percentage = settings['mean_percentage']
@@ -42,6 +46,11 @@ class WhiteNoise:
         self.block = None
         self.next_block = -float('inf')
         self.t = None
+        self.amp_f_start = self.amplify_factor()
+        self.amp_f_end = self.amplify_factor()
+
+    def get_cut_off(self):
+        return np.random.random() * (self.cut_max - self.cut_min) + self.cut_min
 
     def butter_highpass(self):
         nyq = 0.5 * self.fs
@@ -53,6 +62,13 @@ class WhiteNoise:
         b, a = self.butter_highpass()
         y = signal.filtfilt(b, a, self.block, axis=0, padtype=None)
         return y
+    
+    def amplify_factor(self):
+        return np.random.random() * (self.amp_max - self.amp_min) + self.amp_min
+
+    def next_amplify_range(self):
+        self.amp_f_start = self.amp_f_end
+        self.amp_f_end = self.amplify_factor()
 
     def generate_block(self):
         self.block = np.random.random((WhiteNoise.block_duration + WhiteNoise.washout, self.numActions))
@@ -67,6 +83,10 @@ class WhiteNoise:
         
         transformed_range = (self.max - self.min) / high
         self.block = (self.block) * transformed_range + self.min
+
+        self.block = amplify_actions(self.block, self.amp_f_start, self.amp_f_end)
+        self.next_amplify_range()
+        self.cutoff = self.get_cut_off()
     
         self.next_block = self.t + WhiteNoise.block_duration
     
@@ -123,6 +143,32 @@ class RectNoise:
         out = self.level * self.ons
         return out
 
+def amplify(v, t):
+    v = np.copy(v)
+    i = np.argmax(v)
+    mag = np.linalg.norm(v)
+    v[i] = v[i] + t * 10_000
+    v = v / np.linalg.norm(v)
+    v = v * mag
+    return v
+
+def amplify_actions(m, start_f, end_f):
+    """
+    Axis 0: time
+    Axis 1: n_actions
+    """
+    fs = np.linspace(start_f, end_f, m.shape[0])
+    m = np.copy(m)
+    i = np.argmax(m, axis=1)
+    k = np.arange(m.shape[0], dtype=int)
+    mag = np.linalg.norm(m, axis=1)
+    nonZ = mag != 0
+    m[k,i] = m[k,i] * fs
+    m[nonZ] = (m[nonZ].T / np.linalg.norm(m[nonZ], axis=1)).T
+    m = (m.T * mag).T
+    return m
+    
+    
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
@@ -145,7 +191,7 @@ if __name__ == "__main__":
         noise = SinusNoise(0, 40, 2, {"frequency": 4})
         print(noise.thetas)
     elif noise == "white":
-        noise = WhiteNoise(0, 40, 2, {
+        noise = WhiteNoise(0, 40, 4, {
             "cutoff": 4,
             "fs": 400, 
             "order": 1,
@@ -154,20 +200,28 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Noise with name {noise} is not supported")
 
-    t = np.arange(0, 1500, 0.2)
-    
-    actions = np.array([noise(t[i]) for i in range(t.size)]).T
-    
+    t = np.arange(0, 10_000, 50)
+    actions = np.array([noise(t[i]) for i in range(t.size)])
+    fig, ax = plt.subplots(2, 1, figsize=(14, 6))
+
     indicies = t > -1
     t = t[indicies]
-    action1 = actions[0][indicies]
-    action2 = actions[1][indicies]
+    n_actions = actions.shape[1]
 
-    plt.xlabel("Time (s)")
-    plt.ylabel("Injected current (mA)")
-    plt.plot(t / 1000, action1, label="action1")
-    plt.plot(t / 1000, action2, label="action2")
-    plt.legend()
+    ax[0].set_xlabel("Time (s)")
+    ax[0].set_ylabel("Injected current (mA)")
+    lines = ax[0].plot(t / 1000, actions)
+    labels = [f"$a_{i + 1}$" for i in range(n_actions)]
+    ax[0].legend(lines, labels)
+
+
+    # amplified = amplify_actions(actions, 10)
+    # ax[1].set_xlabel("Time (s)")
+    # ax[1].set_ylabel("Injected current (mA)")
+    # lines = ax[1].plot(t / 1000, amplified)
+    # labels = [f"$a_{i + 1}$" for i in range(n_actions)]
+    # ax[1].legend(lines, labels)
+
     plt.show()
     
     

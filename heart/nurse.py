@@ -59,20 +59,20 @@ class Nurse:
 
 
         self.n_i = np.random.choice(
-            np.arange(x_size - 1),
-            size=log_stuff,
+            x_size,
+            size=min(x_size, log_stuff),
             replace=False
         )
 
         self.u_i = np.random.choice(
-            np.arange(u_size - 1),
-            size=log_stuff,
+            u_size,
+            size=min(u_size, log_stuff),
             replace=False
         )
         
         self.y_i = np.random.choice(
-            np.arange(y_size - 1),
-            size=min(log_stuff - 1, y_size - 1),
+            y_size,
+            size=min(y_size, log_stuff),
             replace=False
         )
         
@@ -89,9 +89,9 @@ class Nurse:
 
     def on_test_tick(self, u_now, u_future, yhat, y):
 
-        u = np.zeros(u_now.size + u_future.size)
+        u = np.ones(u_now.size + u_future.size + 1)
         u[:u_now.size] = np.squeeze(u_now)
-        u[u_now.size:] = np.squeeze(u_future)
+        u[u_now.size:-1] = np.squeeze(u_future)
 
         self.neurons_test.append(
             np.squeeze(self.doctor.x[self.n_i])
@@ -120,9 +120,9 @@ class Nurse:
         #     np.squeeze(self.doctor.x[self.other_i])
         # )
 
-        u = np.zeros(u_now.size + u_future.size)
+        u = np.ones(u_now.size + u_future.size + 1)
         u[:u_now.size] = np.squeeze(u_now)
-        u[u_now.size:] = np.squeeze(u_future)
+        u[u_now.size:-1] = np.squeeze(u_future)
 
         self.neurons.append(
             np.squeeze(self.doctor.x[self.n_i])

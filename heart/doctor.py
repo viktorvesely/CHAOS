@@ -56,6 +56,7 @@ class Doctor:
         self.core = None
         self.pca = None
         self.__is_pca = False
+        self.w_in_pca_penalty = None
 
         self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
         self.n_input = self.w_in.shape[1]
@@ -103,13 +104,17 @@ class Doctor:
 
         states, _ = next(generator)
 
-        s_min, s_max = self.u_bounds
-        states = (states - s_min) / (s_max - s_min)
-
-        states = states - np.mean(states, axis=0)
+        states = self.normalize_states(states)
         self.pca.fit(states)
 
         self.extend_readouts(self.heart)
+        
+        penalty = np.array(self.pca.explained_variance_)
+        penalty = penalty / (np.max(penalty) / 2)
+        penalty = np.reshape(penalty, (-1, 1))
+        self.w_in_pca_penalty = np.ones((pca_dim * 2 + 1, 1))
+        self.w_in_pca_penalty[:pca_dim, :] = np.copy(penalty)
+        self.w_in_pca_penalty[pca_dim:-1, :] = np.copy(penalty)
         
     def heart(self):
         return self.V_now    
@@ -125,28 +130,34 @@ class Doctor:
     def sub_input(self):
         return self.u_future - self.u_now
 
-    def normalize_batch(self, states, actions):
+    def normalize_states(self, states):
         s_min, s_max = self.u_bounds
-        a_min, a_max = self.y_bounds
+        states = (states - s_min) / (s_max - s_min)
+        states = states * 2 - 1
+        return states
 
-        s_shape = states.shape
-        states = np.reshape(states, (s_shape[0], s_shape[1], 1))
+    def normalize_actions(self, actions):
+        a_min, a_max = self.y_bounds
+        actions = (actions - a_min) / (a_max - a_min)
+        return actions
+
+    def normalize_batch(self, states, actions):
+        
+        states = self.normalize_states(states)
+        actions = self.normalize_actions(actions)
+
         a_shape = actions.shape
         actions = np.reshape(actions, (a_shape[0], a_shape[1], 1))
+        s_shape = states.shape
+        states = np.reshape(states, (s_shape[0], s_shape[1], 1))
 
         n_samples = s_shape[0]
-
-        states = (states - s_min) / (s_max - s_min)
-        states = states - np.mean(states, axis=0)
-        actions = (actions - a_min) / (a_max - a_min)
 
         if self.__is_pca:
             self.non_pca_states = states
             states = self.pca.transform(np.squeeze(states))
             shape = states.shape
-
             states = np.reshape(states, (shape[0], shape[1], 1))
-            states = states - np.mean(states, axis=0)
 
         return states, actions, n_samples
 
@@ -167,6 +178,8 @@ class Doctor:
         return yhat.flatten()
 
     def test(self):
+
+        self.x = self.initial_state()
 
         heart_name = self.pars.get("dataset")
         hearts_path = os.path.join(os.getcwd(), "hearts")
@@ -216,24 +229,20 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(self.d + 1, n_samples):
+            for i in range(n_samples - self.d):
 
-                # u_now = states[i]
-                # y = actions[i]
-                # u_future = states[i + self.d]
-
-                u_now = states[i - self.d]
-                y = actions[i - self.d - 1]
-                u_future = states[i]
+                u_now = states[i]
+                y = actions[i]
+                u_future = states[i + self.d]
 
                 if self.__is_pca:
-                    yhat = self(u_now, u_future, self.non_pca_states[i - self.d])
+                    yhat = self(u_now, u_future, self.non_pca_states[i])
                 else:
                     yhat = self(u_now, u_future)
 
                 self.nurse.on_test_tick(u_now, u_future, yhat, y)
 
-                if i < self.washout_period + self.d:
+                if i < self.washout_period:
                     continue
 
                 yhats.append(yhat)
@@ -253,6 +262,9 @@ class Doctor:
         if verbal:
             print("Training network")
         
+        X = []
+        Y = []
+
         core = 1
         for states, actions in generator:
             
@@ -263,61 +275,43 @@ class Doctor:
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
 
-            for i in range(self.d + 1, n_samples):
-
-
-                # u_now =  states[i]
-                # y = actions[i]            
-                # u_future = states[i + self.d]
-
+            for i in range(n_samples - self.d):
                 
-                u_now =  states[i - self.d]
-                y = actions[i - self.d - 1]            
-                u_future = states[i]
+                u_now =  states[i]
+                y = actions[i]            
+                u_future = states[i + self.d]
 
                 self.nurse.on_training_tick(u_now, u_future, y)
 
                 if self.__is_pca:
-                    self(u_now, u_future, self.non_pca_states[i - self.d])
+                    self(u_now, u_future, self.non_pca_states[i])
                 else:
                     self(u_now, u_future)
 
-                if i < (self.washout_period + self.d):
+                if i < self.washout_period:
                     continue
-
-                train_state_t = self.train_state.T
                 
-                if self.kahan:
-                    # Kahan summation for XX
-                    small = np.matmul(self.train_state, train_state_t) - self.XXC
-                    temp = self.XX + small
-                    self.XXC = (temp - self.XX) - small
-                    self.XX = temp
-
-                    # Kahan summation for YX
-                    small = np.matmul(y, train_state_t) - self.YXC
-                    temp = self.YX + small
-                    self.YXC = (temp - self.YX) - small
-                    self.YX = temp
-                
-                else:
-                    self.XX = self.XX + np.matmul(self.train_state, train_state_t)
-                    self.YX = self.YX + np.matmul(y, train_state_t)
+                X.append(np.squeeze(self.train_state))
+                Y.append(np.squeeze(y))
             
             end = time.perf_counter()
             if verbal:
                 print(f"Core {core} done in {end - start}")
             core += 1
   
-        self.calc_w_out()
+        X_T = np.array(X)
+        X = X_T.T
+        Y = np.array(Y).T
+        
+        self.calc_w_out(X, X_T, Y)
 
         if save:
             self.save_model()
         
 
-    def calc_w_out(self):
-        inversed = np.linalg.inv(self.XX + self.beta * np.identity(self.n_readouts))
-        self.w_out = np.matmul(self.YX, inversed)
+    def calc_w_out(self, X, X_T, Y):
+        inversed = np.linalg.inv(np.matmul(X, X_T) + self.beta * np.identity(self.n_readouts))
+        self.w_out = np.matmul(np.matmul(Y, X_T), inversed)
 
     def save_model(self, core=0):
         p = self.path
@@ -330,11 +324,15 @@ class Doctor:
         np.save(os.path.join(p, f"w_{core}.npy"), self.w)
         np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
         np.save(os.path.join(p, f"leaky_mask_{core}.npy"), self.leaky_mask)
+        if self.__is_pca:
+            np.save(os.path.join(p, f"pca.npy"), self.pca.components_)
 
         self.nurse.on_save(core, p)
         
     def load_model(self, core=0):
         p = self.path
+
+        raise NotImplementedError("Implement loading PCA matrix first")
 
         self.w_in = np.load(os.path.join(p, f"w_in_{core}.npz"))
         self.w = np.load(os.path.join(p, f"w_{core}.npz"))
@@ -388,6 +386,9 @@ class Doctor:
         self.u_now = u_now
         self.u_future = u_future
         u = self.fast_append_and_insert_one(u_now, u_future)
+
+        # if self.__is_pca:
+        #     u = u * self.w_in_pca_penalty
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
             self.w_in.dot(u) +
