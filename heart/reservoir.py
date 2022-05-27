@@ -341,11 +341,11 @@ def material(pars, heart_pars):
     n_input = n_state * 2 + 1
     #n_half = int(np.ceil(n / 2))
     w_in_weights = pars.get("material_w_in")
-    w_in = np.zeros((n, n_input))
+    w_in = np.ones((n, n_input))
     w_in[:,:-1] = normal(w_in_weights, size=(n, n_state * 2))
 
     # Setup bias
-    w_in_bias = pars.get("material_w_bias")
+    w_in_bias = pars.get("material_w_bias") 
     w_in[:,-1] = normal(w_in_bias, size=n)
 
     # ---------------------- W_out ----------------------------

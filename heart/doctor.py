@@ -107,7 +107,7 @@ class Doctor:
         states = self.normalize_states(states)
         self.pca.fit(states)
 
-        self.extend_readouts(self.heart)
+        #self.extend_readouts(self.heart)
         
         penalty = np.array(self.pca.explained_variance_)
         penalty = penalty / (np.max(penalty) / 2)
@@ -387,11 +387,10 @@ class Doctor:
         self.u_future = u_future
         u = self.fast_append_and_insert_one(u_now, u_future)
 
-        # if self.__is_pca:
-        #     u = u * self.w_in_pca_penalty
+        
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
-            self.w_in.dot(u) +
+            self.w_in.dot(u * self.w_in_pca_penalty) +
             self.w.dot(self.x)
         )
 
