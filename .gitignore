@@ -1,2 +1,4 @@
 video.js
 *.pyc
+states*.npy
+actions*.npy

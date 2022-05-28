@@ -20,6 +20,7 @@ def get_parser():
     parser.add_argument('-hc', '--hypercores', type=int, default=0)
     parser.add_argument('-tc', '--traincores', type=int, default=1)
     parser.add_argument('-p', '--parts', type=int, default=-1)
+    parser.add_argument('-l', '--limit', type=int, default=-1)
 
     return parser  
 

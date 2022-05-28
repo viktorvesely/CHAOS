@@ -1,5 +1,5 @@
 {
-    "dataset": "peregrine_all",
+    "dataset": "puvn",
     "reference_signal": "reference_signal",
     "reference_loop_start": 0,
     "reference_loop_end": 20,
