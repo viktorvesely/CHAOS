@@ -65,20 +65,25 @@ class Doctor:
 
         self.x = self.initial_state()
         self.train_state = None
-        self.u_size = get_state_size(os.path.join(os.getcwd(), 'hearts', pars.get("dataset")))
-        self.u_now = np.zeros((self.u_size, 1))
-        self.V_now = np.zeros((self.u_size, 1))
+        self.state_size = get_state_size(os.path.join(os.getcwd(), 'hearts', pars.get("dataset")))
+        self.V_now = np.zeros((self.state_size, 1))
         self.non_pca_states = None
-        self.u_future = np.zeros((self.u_size, 1))
+
 
         self.extenders = []
         if pars.get("x^2"):
             self.extend_readouts(self.x_squared)
-        if pars.get("state_sub"):
-            self.extend_readouts(self.sub_input)
         pca_dim = pars.get("pca_dim")
         if pca_dim > 0:
             self.init_pca(pca_dim)
+        
+        u_size = pca_dim if self.__is_pca else self.state_size
+        self.u_future = np.zeros((u_size, 1))
+        self.u_now = np.zeros((u_size, 1))
+
+        if pars.get("state_sub"):
+            self.extend_readouts(self.sub_input)
+
 
         self.XX = np.zeros((self.n_readouts, self.n_readouts))
         self.XXC = np.zeros((self.n_readouts, self.n_readouts))
@@ -386,8 +391,6 @@ class Doctor:
         self.u_now = u_now
         self.u_future = u_future
         u = self.fast_append_and_insert_one(u_now, u_future)
-
-        
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
             self.w_in.dot(u * self.w_in_pca_penalty) +

@@ -305,7 +305,8 @@ def spatial(pars, heart_pars):
     leaky_mask = np.random.random((n, 1)) * (leaky_alpha_max - leaky_alpha_min) + leaky_alpha_min 
     
     return w_in, w, w_out, leaky_mask
-
+   
+    
 
 def material(pars, heart_pars):
 
@@ -327,6 +328,17 @@ def material(pars, heart_pars):
     sr = calc_sr(w)
 
     w = (w / sr) * spectral_radius
+
+
+    # connectivity = pars.get("material_density")
+    # w = np.zeros((n, n))
+    # for i in range(n):
+    #     for j in range(n):
+    #         if np.random.random() <= connectivity:
+    #             w[i, j] = np.random.random() * w_sigma * 2 - w_sigma
+
+    # sr = calc_sr(w)
+    # w = (w / sr) * spectral_radius
     # ---------------------- W_in -----------------------------
 
     pca_dim = pars.get("pca_dim")
