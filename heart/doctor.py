@@ -36,7 +36,8 @@ class Doctor:
         y_bounds,
         pars,
         heart_pars,
-        sampling_frequency
+        sampling_frequency,
+        backup_architecture=None
     ):       
 
         self.name = name 
@@ -58,10 +59,17 @@ class Doctor:
         self.__is_pca = False
         self.w_in_pca_penalty = None
 
-        self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
+        if heart_pars is None:
+            if backup_architecture is None:
+                raise ValueError("Both heart_pars & backup_architecture are None")
+            self.w_in, self.w, self.w_out, self.leaky_mask = backup_architecture(pars)
+        else:
+            self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
+
         self.n_input = self.w_in.shape[1]
         self.n_reservior = self.w.shape[0]
         self.n_output, self.n_readouts = self.w_out.shape
+        self.w_in_pca_penalty = np.ones((self.n_input, 1))
 
         self.x = self.initial_state()
         self.train_state = None
@@ -112,7 +120,7 @@ class Doctor:
         states = self.normalize_states(states)
         self.pca.fit(states)
 
-        #self.extend_readouts(self.heart)
+        self.extend_readouts(self.heart)
         
         penalty = np.array(self.pca.explained_variance_)
         penalty = penalty / (np.max(penalty) / 2)
@@ -256,6 +264,10 @@ class Doctor:
         ys = np.squeeze(np.array(ys))
         yhats = np.squeeze(np.array(yhats))
 
+        if ys.ndim == 1:
+            ys = np.reshape(ys, (-1, 1))
+            yhats = np.reshape(yhats, (-1, 1))
+
         self.nurse.on_test_finish(self.core, self.path)
      
         return ys, yhats
@@ -297,7 +309,10 @@ class Doctor:
                     continue
                 
                 X.append(np.squeeze(self.train_state))
-                Y.append(np.squeeze(y))
+                if self.n_output == 1:
+                    Y.append(np.reshape(y, (1,)))
+                else:
+                    Y.append(np.squeeze(y))
             
             end = time.perf_counter()
             if verbal:
@@ -386,11 +401,21 @@ class Doctor:
         return readouts
 
 
+    def input(self, u_now, u_future):
+        # self.u_now = u_now
+        # self.u_future = u_future
+        # return self.fast_append_and_insert_one(u_now, u_future)
+
+        return np.array([
+            [u_now[0, 0]],
+            [u_now[1, 0]],
+            [u_future[0, 0]],
+            [1]
+        ])
+
     def __call__(self, u_now, u_future, non_pca_state=None):
 
-        self.u_now = u_now
-        self.u_future = u_future
-        u = self.fast_append_and_insert_one(u_now, u_future)
+        u = self.input(u_now, u_future)        
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
             self.w_in.dot(u * self.w_in_pca_penalty) +

@@ -1,0 +1,97 @@
+{
+    "t_start": 0,
+    "t_end": 1000,
+    "BPS": 1.7,
+    "stim_start": 1,
+    "stim_end": 40,
+    "stim_amplitude": 40,
+    "gridx": 8,
+    "gridy": 30,
+    "periodicX": false,
+    "periodicY": true,
+    "min_resistivity": 4,
+    "max_resistivity": 30,
+    "resistivity_path": "./hearts/small-2/new_mask.png",
+    "resistivity_channel": 2,
+    "min_k": 3,
+    "max_k": 9,
+    "k_o_channel": 0,
+    "sampling_frequency": 200,
+    "SA_node": [
+        0,
+        0
+    ],
+    "detectors": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            7
+        ],
+        [
+            9,
+            0
+        ],
+        [
+            9,
+            7
+        ],
+        [
+            19,
+            0
+        ],
+        [
+            19,
+            7
+        ],
+        [
+            29,
+            0
+        ],
+        [
+            29,
+            7
+        ]
+    ],
+    "injectors": [
+        [
+            0,
+            2
+        ],
+        [
+            9,
+            4
+        ],
+        [
+            19,
+            2
+        ],
+        [
+            29,
+            4
+        ]
+    ],
+    "max_action": 60.0,
+    "min_action": 0.0,
+    "max_Vm": 50.0,
+    "min_Vm": -90.0,
+    "actor": "",
+    "noise_sinus_settings": {
+        "frequency": 70
+    },
+    "noise_rect_settings": {
+        "passivePeriodMsMu": 150,
+        "activePeriodMsMu": 50,
+        "passivePeriodMsStd": 15,
+        "activePeriodMsStd": 9,
+        "t_start": 10
+    },
+    "noise_white_settings": {
+        "cutoff": 4,
+        "fs": 400,
+        "order": 1,
+        "mean_percentage": 0.9
+    }
+}
