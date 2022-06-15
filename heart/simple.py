@@ -248,7 +248,7 @@ def generate_train_data(N, experiment_name, every_nth):
 
     fig, ax = plt.subplots(2, 1, figsize=(12, 20), dpi=90)
     ax[0].plot(ts, states[:-1,0], label="x")
-    #ax[0].plot(ts, states[:-1,1], label="y")
+    ax[0].plot(ts, states[:-1,1], label="y")
     ax[0].legend()
     #ax[1].plot(states[0], states[1]) 
     ax[1].plot(actions)

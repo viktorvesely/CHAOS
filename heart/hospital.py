@@ -159,7 +159,23 @@ def train_single_thread(
     non_heart_args=None
     ):
 
-    doctor = boot_doctor_train(name, path, doctor_pars, core=core)
+    if non_heart_args is not None:
+
+        args = non_heart_args
+        doctor = boot_doctor_train_non_heart(
+            name,
+            path,
+            doctor_pars,
+            core=core,
+            min_u=args["min_u"],
+            max_u=args["max_u"],
+            min_y=args["min_y"],
+            max_y=args["max_y"],
+            architecture=args["architecture"]
+        )
+    else:
+
+        doctor = boot_doctor_train(name, path, doctor_pars, core=core)
 
     doctor.train(
         load_experiment_generator(
@@ -173,8 +189,9 @@ def train_single_thread(
 
     return test(doctor), doctor
 
+
 def train_single_thread_pool_wrapper(args):
-    name, path, doctor_pars, parts, core = args
+    name, path, doctor_pars, parts, core, non_heart_args = args
     NRMSE, doctor = train_single_thread(
         name,
         path,
@@ -182,7 +199,8 @@ def train_single_thread_pool_wrapper(args):
         verbal=False,
         save=False,
         parts=parts,
-        core=core
+        core=core,
+        non_heart_args=non_heart_args
     )
 
     doctor.save_model(core=core)
@@ -342,7 +360,15 @@ def update_params(run, pars):
         pars[key] = value
 
 
-def hyper_optimization_single_thread_training(name, path, hyper_cores, original_pars, parts=-1):
+def hyper_optimization_single_thread_training(
+    name,
+    path,
+    hyper_cores,
+    original_pars,
+    parts=-1,
+    non_heart_args=None
+    ):
+
     import copy
     import time
 
@@ -358,7 +384,7 @@ def hyper_optimization_single_thread_training(name, path, hyper_cores, original_
         update_params(run, doctor_pars_dict)
         doctor_pars = Params().from_dict(doctor_pars_dict)
         doctor_pars.params()["__hyper_params"] = run
-        pool_args.append([name, path, doctor_pars, parts, i])
+        pool_args.append([name, path, doctor_pars, parts, i, non_heart_args])
     n_runs = len(runs)
 
     print(f"{n_runs} run(s) generated!")
@@ -464,7 +490,8 @@ if __name__ == '__main__':
                 path,
                 args.hypercores,
                 doctor_params,
-                parts=args.parts
+                parts=args.parts,
+                non_heart_args=non_heart_args
             )
   
     elif args.traincores > 1:
@@ -492,6 +519,8 @@ if __name__ == '__main__':
     if args.test:
         print(f"[{name}] Real test time!")
         doctor.test()
+
+
 
     
 
