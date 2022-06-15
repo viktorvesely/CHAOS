@@ -11,7 +11,7 @@
     "periodicY": true,
     "min_resistivity": 7,
     "max_resistivity": 30,
-    "resistivity_path": "./hearts/peregrine-1/new_mask.png",
+    "resistivity_path": "./new_mask.png",
     "resistivity_channel": 2,
     "min_k": 3,
     "max_k": 9,

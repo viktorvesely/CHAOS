@@ -2,3 +2,8 @@ video.js
 *.pyc
 states*.npy
 actions*.npy
+*.npy
+hearts/
+doctors/
+*.csv
+*.pkl

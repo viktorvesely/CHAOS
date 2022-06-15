@@ -9,9 +9,6 @@ from heart import solve
 from noise import SinusNoise, RectNoise, WhiteNoise
 from loader import dedicate_folder
 
-class RecorderMode(Enum):
-    Generation = 0
-    Interactive = 1
 
 class Recorder:
 
@@ -48,11 +45,13 @@ class Recorder:
         self.noise = None
         self.get_action = self.resolve_action_mode()
         self.last_action = 0
+        self.interactive = False
 
     def setup_interactive_mode(self, get_action_callback):
         self.lineArgs = get_parser_defaults(self.name)
         self.lineArgs.verbal = True
         self.get_action = get_action_callback
+        self.interactive = True
         return self
 
     def resolve_action_mode(self):
@@ -102,6 +101,10 @@ class Recorder:
         return V.flatten()
 
     def save(self):
+
+        if self.interactive:
+            return
+
         np.save(
             os.path.join(self.path, 'data', f'states_{self.core}_{self.save_n_batch}.npy'),
             np.array(self.states)

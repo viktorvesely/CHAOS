@@ -441,15 +441,15 @@ def solve(
 
 
 
-#perf_start = time.perf_counter()
-#with cProfile.Profile() as pr:
-#solve(videoOut=videoOut)
-#perf_end = time.perf_counter()
+# perf_start = time.perf_counter()
+# with cProfile.Profile() as pr:
+#     solve(videoOut=videoOut)
+# perf_end = time.perf_counter()
 
-#stats = pstats.Stats(pr)
-#stats.sort_stats(pstats.SortKey.TIME)
-#stats.print_stats()
-#print(f"Solve time: {perf_end - perf_start} seconds.")
+# stats = pstats.Stats(pr)
+# stats.sort_stats(pstats.SortKey.TIME)
+# stats.print_stats()
+# print(f"Solve time: {perf_end - perf_start} seconds.")
 
 # if debug_graphs:
 #     input("Press [Enter] to close")

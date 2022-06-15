@@ -8,6 +8,7 @@ from loader import dedicate_folder, load_experiment_generator
 from settings import Params
 from doctor import Doctor
 from simple import architecture as simple_architecture
+from recorder import Recorder
 
 import cProfile
 import pstats
@@ -23,6 +24,8 @@ def get_parser():
     parser.add_argument('-p', '--parts', type=int, default=-1)
     parser.add_argument('-l', '--limit', type=int, default=-1)
     parser.add_argument('-nh', '--nonheart', action='store_true')
+    parser.add_argument('-ttl', '--testload', action='store_true')
+    parser.add_argument('-t', '--test', action='store_true')
 
     return parser  
 
@@ -38,9 +41,12 @@ def boot_doctor_train_non_heart(
     min_y,
     max_y,
     architecture,
-    core=0
+    core=0,
+    save=True
     ):
-    doc_pars.save(os.path.join(path, f"doctor_params_{core}.json"))
+
+    if save:
+        doc_pars.save(os.path.join(path, f"doctor_params_{core}.json"))
 
     doctor = Doctor(
         name,
@@ -62,10 +68,11 @@ def boot_doctor_train_non_heart(
     
     return doctor
 
-def boot_doctor_train(name, path, doc_pars, core=0):
+def boot_doctor_train(name, path, doc_pars, core=0, save=True):
     
     # Copy settings
-    doc_pars.save(os.path.join(path, f"doctor_params_{core}.json"))
+    if save:
+        doc_pars.save(os.path.join(path, f"doctor_params_{core}.json"))
 
     heart_pars = Params(os.path.join(get_heart_path(doc_pars), "params.json"))
 
@@ -91,7 +98,7 @@ def boot_doctor_train(name, path, doc_pars, core=0):
     return doctor
 
 
-def test(doctor, save=True):
+def test(doctor):
     doc_pars = doctor.pars
 
     ys, yhats = doctor.test_train_data(
@@ -110,22 +117,14 @@ def test(doctor, save=True):
     NMSE = delta / variances
     NRMSE = np.sqrt(NMSE)
     NRMSE = np.mean(NRMSE)
-
-    if save:
-        pass
     
     return NRMSE
 
-def train_single_thread(
-    name,
-    path,
-    doctor_pars,
-    verbal=True,
-    save=True,
-    parts=-1,
-    core=0,
-    non_heart_args=None
-    ):
+def load_model(name, core=0, non_heart_args=None):
+
+    path = os.path.join(os.getcwd(), 'doctors', name)
+
+    doctor_pars = Params(os.path.join(path, f'doctor_params_{core}.json'))
 
     if non_heart_args is not None:
 
@@ -139,11 +138,28 @@ def train_single_thread(
             max_u=args["max_u"],
             min_y=args["min_y"],
             max_y=args["max_y"],
-            architecture=args["architecture"]
+            architecture=args["architecture"],
+            save=False
         )
     else:
+        doctor = boot_doctor_train(name, path, doctor_pars, core=core, save=False)
 
-        doctor = boot_doctor_train(name, path, doctor_pars, core=core)
+    doctor.load_model(core=core)
+
+    return doctor
+
+def train_single_thread(
+    name,
+    path,
+    doctor_pars,
+    verbal=True,
+    save=True,
+    parts=-1,
+    core=0,
+    non_heart_args=None
+    ):
+
+    doctor = boot_doctor_train(name, path, doctor_pars, core=core)
 
     doctor.train(
         load_experiment_generator(
@@ -157,9 +173,8 @@ def train_single_thread(
 
     return test(doctor), doctor
 
-
 def train_single_thread_pool_wrapper(args):
-    name, path, doctor_pars, parts, core, non_heart_args = args
+    name, path, doctor_pars, parts, core = args
     NRMSE, doctor = train_single_thread(
         name,
         path,
@@ -167,8 +182,7 @@ def train_single_thread_pool_wrapper(args):
         verbal=False,
         save=False,
         parts=parts,
-        core=core,
-        non_heart_args=non_heart_args
+        core=core
     )
 
     doctor.save_model(core=core)
@@ -328,15 +342,7 @@ def update_params(run, pars):
         pars[key] = value
 
 
-def hyper_optimization_single_thread_training(
-    name,
-    path,
-    hyper_cores,
-    original_pars,
-    parts=-1,
-    non_heart_args=None
-    ):
-
+def hyper_optimization_single_thread_training(name, path, hyper_cores, original_pars, parts=-1):
     import copy
     import time
 
@@ -352,7 +358,7 @@ def hyper_optimization_single_thread_training(
         update_params(run, doctor_pars_dict)
         doctor_pars = Params().from_dict(doctor_pars_dict)
         doctor_pars.params()["__hyper_params"] = run
-        pool_args.append([name, path, doctor_pars, parts, i, non_heart_args])
+        pool_args.append([name, path, doctor_pars, parts, i])
     n_runs = len(runs)
 
     print(f"{n_runs} run(s) generated!")
@@ -414,7 +420,8 @@ def hyper_optimization_single_thread_training(
     with open(os.path.join(path, 'results.csv'), "w", encoding='utf-8') as f:
         f.write(export)
     
-
+def real_test(doctor):
+    doctor.test()
 
 
 if __name__ == '__main__':
@@ -422,13 +429,6 @@ if __name__ == '__main__':
 
     parser = get_parser()
     args = parser.parse_args()
-
-    name, path = dedicate_folder(
-        args.name,
-        os.path.join(os.getcwd(), 'doctors')
-    )
-
-    doctor_params = Params("./doctor_params.json")
 
     non_heart_args = None
     if args.nonheart:
@@ -438,6 +438,20 @@ if __name__ == '__main__':
             "architecture": simple_architecture
         }
 
+    if args.testload:
+        print(f"[{args.name}] Loading and real test")
+        doctor = load_model(args.name, core=0, non_heart_args=non_heart_args)
+        doctor.test()
+        exit()
+
+    name, path = dedicate_folder(
+        args.name,
+        os.path.join(os.getcwd(), 'doctors')
+    )
+
+    doctor_params = Params("./doctor_params.json")
+
+    doctor = None
     if args.hypercores > 0:
 
         if args.traincores > 1:
@@ -450,8 +464,7 @@ if __name__ == '__main__':
                 path,
                 args.hypercores,
                 doctor_params,
-                parts=args.parts,
-                non_heart_args=non_heart_args
+                parts=args.parts
             )
   
     elif args.traincores > 1:
@@ -465,7 +478,7 @@ if __name__ == '__main__':
     else:
         print(f"[{name}] Singlethreaded training")
         start = time.perf_counter()
-        NRMSE, _ = train_single_thread(
+        NRMSE, doctor = train_single_thread(
             name,
             path,
             doctor_params,
@@ -476,8 +489,9 @@ if __name__ == '__main__':
         print(f"NRMSE: {NRMSE}")
         print(f"Singlethreaded training took {end - start}")
     
-
-
+    if args.test:
+        print(f"[{name}] Real test time!")
+        doctor.test()
 
     
 

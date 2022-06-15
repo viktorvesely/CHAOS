@@ -63,7 +63,7 @@ function rescale() {
 
 function time() {
     t = frameId * dt;
-    d = Math.floor(t / fs);
+    d = Math.floor(t / (1000 / fs));
     text.innerText = `d: ${d} \n t: ${t.toFixed(5)}`;
 }
 

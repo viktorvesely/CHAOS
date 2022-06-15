@@ -5,10 +5,10 @@ from scipy import sparse as sp
 import time
 import numba
 from sklearn.decomposition import PCA
+import pickle
 
 import recorder
 from loader import dedicate_folder, get_state_size, load_experiment_generator
-from dictator import Dictator
 from reservoir import get_architecture
 from nurse import Nurse
 
@@ -36,8 +36,7 @@ class Doctor:
         y_bounds,
         pars,
         heart_pars,
-        sampling_frequency,
-        backup_architecture=None
+        sampling_frequency
     ):       
 
         self.name = name 
@@ -51,25 +50,26 @@ class Doctor:
         self.heart_pars = heart_pars
         self.fs = sampling_frequency
         self.exploit_period = 1000 / sampling_frequency
-        self.dictator = Dictator(self.pars, self.heart_pars)
-        self.test_time = pars.get('test_time')
         self.kahan = pars.get('kahan')
         self.core = None
         self.pca = None
         self.__is_pca = False
         self.w_in_pca_penalty = None
 
-        if heart_pars is None:
-            if backup_architecture is None:
-                raise ValueError("Both heart_pars & backup_architecture are None")
-            self.w_in, self.w, self.w_out, self.leaky_mask = backup_architecture(pars)
-        else:
-            self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
-
+        self.w_in, self.w, self.w_out, self.leaky_mask = get_architecture(pars, heart_pars)
         self.n_input = self.w_in.shape[1]
         self.n_reservior = self.w.shape[0]
         self.n_output, self.n_readouts = self.w_out.shape
-        self.w_in_pca_penalty = np.ones((self.n_input, 1))
+<<<<<<< HEAD
+
+        self.u_scaling = pars.get('u_scaling')
+        if len(self.u_scaling) == 0:
+            self.u_scaling = np.ones((self.n_input, 1))
+        else:
+            self.u_scaling = np.reshape(np.array(self.u_scaling, dtype=float), (-1, 1))
+            
+=======
+>>>>>>> parent of c954d45 (simple)
 
         self.x = self.initial_state()
         self.train_state = None
@@ -104,12 +104,13 @@ class Doctor:
             self.w.shape[0],
             self.w_out.shape[0]
         )
+
+        self.reference = None
     
 
     def init_pca(self, pca_dim):
         self.__is_pca = True
         self.pca = PCA(n_components=pca_dim)
-        
         generator = load_experiment_generator(
             self.pars.get("dataset"),
             os.path.join(os.getcwd(), 'hearts')
@@ -120,7 +121,7 @@ class Doctor:
         states = self.normalize_states(states)
         self.pca.fit(states)
 
-        self.extend_readouts(self.heart)
+        #self.extend_readouts(self.heart)
         
         penalty = np.array(self.pca.explained_variance_)
         penalty = penalty / (np.max(penalty) / 2)
@@ -153,6 +154,11 @@ class Doctor:
         a_min, a_max = self.y_bounds
         actions = (actions - a_min) / (a_max - a_min)
         return actions
+    
+    def denormalize_actions(self, actions):
+        a_min, a_max = self.y_bounds
+        actions = actions * (a_max - a_min) + a_min
+        return actions
 
     def normalize_batch(self, states, actions):
         
@@ -176,17 +182,30 @@ class Doctor:
 
     def exploit(self, u_now, t):
         
-        n = round(t / self.exploit_period)
-        u_desired = self.dictator.u_ref(n)
+        n = int(t / self.exploit_period)
+        if n + self.d >= self.reference.shape[0]:
+            print("Reference signal overflow")
+            n = self.reference.shape[0] - 1 - self.d
+        u_desired = self.reference[n + self.d]
 
-        # TODO normalization
+        if n < self.washout_period:
+            return np.zeros(self.n_output)
 
-        u_desired = np.reshape(u_desired, (u_desired.size, 1))
-        u_now = np.reshape(u_now, (u_now.size, 1))
+        u_now = self.normalize_states(u_now)
+        u_desired = self.normalize_states(u_desired)
 
-        yhat = self(u_now, u_desired)
+        non_pca_state = None
+        if self.__is_pca:
+            non_pca_state = np.reshape(u_now, (-1, 1))
+            u_now = self.pca.transform(np.reshape(u_now, (1, -1)))[0]
+            u_desired = self.pca.transform(np.reshape(u_desired, (1, -1)))[0]
+        
+        u_desired = np.reshape(u_desired, (-1, 1))
+        u_now = np.reshape(u_now, (-1, 1))
 
-        # TODO un-normalization + clipping
+        yhat = self(u_now, u_desired, non_pca_state=non_pca_state)
+        yhat = self.denormalize_actions(yhat)
+        yhat = np.clip(yhat, 0.0, 500.0)
 
         return yhat.flatten()
 
@@ -198,15 +217,16 @@ class Doctor:
         hearts_path = os.path.join(os.getcwd(), "hearts")
         doctor_heart_name = f"TEST_{self.name}_{heart_name}"
         doctor_heart_name, path = dedicate_folder(doctor_heart_name, hearts_path)
-        test_time = self.pars.get("test_time")
-    
+        ref_name = self.pars.get("reference_signal")
+        self.reference = np.load(os.path.join(os.getcwd(), 'hearts', ref_name, 'data', 'states_0_0.npy'))
+        test_time = self.reference.shape[0] *  (1 / self.heart_pars.get("sampling_frequency"))
+
         print(f"Generating test '{doctor_heart_name}' for {test_time} simulation seconds")
 
         # Override the duration of the simulation
         original_t_start = self.heart_pars.get("t_start")
         original_t_end = self.heart_pars.get("t_end")
-        t_end = self.pars.get("test_time")
-        t_end *= 1000 # Convert to ms
+        t_end = test_time * 1000
         t_start = 0
         self.heart_pars.override("t_start", t_start)
         self.heart_pars.override("t_end", t_end)        
@@ -220,11 +240,15 @@ class Doctor:
         ).setup_interactive_mode(self.exploit)
 
         heart.record()
-        self.dictator.save_ref_sequence(os.path.join(path, 'data', 'ref.npy'))
 
         # Restore heart params just in case : )
         self.heart_pars.override("t_start", original_t_start)
         self.heart_pars.override("t_end", original_t_end)
+
+        np.save(os.path.join(path, "states.npy"), np.array(heart.states))
+        np.save(os.path.join(path, "actions.npy"), np.array(heart.actions))
+        np.save(os.path.join(path, "reference.npy"), self.reference)
+        
     
         
 
@@ -263,10 +287,6 @@ class Doctor:
         
         ys = np.squeeze(np.array(ys))
         yhats = np.squeeze(np.array(yhats))
-
-        if ys.ndim == 1:
-            ys = np.reshape(ys, (-1, 1))
-            yhats = np.reshape(yhats, (-1, 1))
 
         self.nurse.on_test_finish(self.core, self.path)
      
@@ -309,10 +329,7 @@ class Doctor:
                     continue
                 
                 X.append(np.squeeze(self.train_state))
-                if self.n_output == 1:
-                    Y.append(np.reshape(y, (1,)))
-                else:
-                    Y.append(np.squeeze(y))
+                Y.append(np.squeeze(y))
             
             end = time.perf_counter()
             if verbal:
@@ -345,19 +362,23 @@ class Doctor:
         np.save(os.path.join(p, f"w_out_{core}.npy"), self.w_out)
         np.save(os.path.join(p, f"leaky_mask_{core}.npy"), self.leaky_mask)
         if self.__is_pca:
-            np.save(os.path.join(p, f"pca.npy"), self.pca.components_)
+            with open(os.path.join(p, f"pca_{core}.pkl"), "wb") as f:
+                pickle.dump(self.pca, f)
 
         self.nurse.on_save(core, p)
         
     def load_model(self, core=0):
         p = self.path
 
-        raise NotImplementedError("Implement loading PCA matrix first")
-
-        self.w_in = np.load(os.path.join(p, f"w_in_{core}.npz"))
-        self.w = np.load(os.path.join(p, f"w_{core}.npz"))
+        self.w_in = np.load(os.path.join(p, f"w_in_{core}.npy"))
+        self.w = np.load(os.path.join(p, f"w_{core}.npy"))
         self.w_out = np.load(os.path.join(p, f"w_out_{core}.npy"))
         self.leaky_mask = np.load(os.path.join(p, f"leaky_mask_{core}.npy"))
+
+        pca_path = os.path.join(p, f"pca_{core}.pkl")
+        if os.path.isfile(pca_path):
+            with open(pca_path, "rb") as f:
+                self.pca = pickle.load(f)
 
 
     def initial_state(self):
@@ -401,6 +422,7 @@ class Doctor:
         return readouts
 
 
+<<<<<<< HEAD
     def input(self, u_now, u_future):
         # self.u_now = u_now
         # self.u_future = u_future
@@ -410,12 +432,17 @@ class Doctor:
             [u_now[0, 0]],
             [u_now[1, 0]],
             [u_future[0, 0]],
+            [u_future[1, 0]],
             [1]
-        ])
+        ]) * self.u_scaling
 
+=======
+>>>>>>> parent of c954d45 (simple)
     def __call__(self, u_now, u_future, non_pca_state=None):
 
-        u = self.input(u_now, u_future)        
+        self.u_now = u_now
+        self.u_future = u_future
+        u = self.fast_append_and_insert_one(u_now, u_future)
 
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
             self.w_in.dot(u * self.w_in_pca_penalty) +
