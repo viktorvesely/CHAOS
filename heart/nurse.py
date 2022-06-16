@@ -89,16 +89,14 @@ class Nurse:
 
     def on_test_tick(self, u_now, u_future, yhat, y):
 
-        u = np.ones(u_now.size + u_future.size + 1)
-        u[:u_now.size] = np.squeeze(u_now)
-        u[u_now.size:-1] = np.squeeze(u_future)
+        u = self.doctor.input(u_now, u_future)
 
         self.neurons_test.append(
             np.squeeze(self.doctor.x[self.n_i])
         )
 
         self.u_test.append(
-            u[self.u_i]
+            np.squeeze(u[self.u_i])
         )
 
 
@@ -120,16 +118,14 @@ class Nurse:
         #     np.squeeze(self.doctor.x[self.other_i])
         # )
 
-        u = np.ones(u_now.size + u_future.size + 1)
-        u[:u_now.size] = np.squeeze(u_now)
-        u[u_now.size:-1] = np.squeeze(u_future)
+        u = self.doctor.input(u_now, u_future)
 
         self.neurons.append(
             np.squeeze(self.doctor.x[self.n_i])
         )
 
         self.u.append(
-            u[self.u_i]
+            np.squeeze(u[self.u_i])
         )
 
         self.y.append(

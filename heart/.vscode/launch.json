@@ -28,6 +28,7 @@
             "args": [
                 "--name",
                 "debug",
+                "--nonheart",
                 "--parts",
                 "1"
             ]

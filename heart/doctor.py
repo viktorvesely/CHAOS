@@ -67,9 +67,7 @@ class Doctor:
         self.n_reservior = self.w.shape[0]
         self.n_output, self.n_readouts = self.w_out.shape
 
-        
         self.w_in_pca_penalty = np.ones((self.n_input, 1))
-
 
         self.u_scaling = pars.get('u_scaling')
         if len(self.u_scaling) == 0:
@@ -105,6 +103,8 @@ class Doctor:
         
         self.YX = np.zeros((self.n_output, self.n_readouts))
         self.YXC = np.zeros((self.n_output, self.n_readouts))
+
+        self.X = None
 
         self.nurse = Nurse(self, 
             self.w_in.shape[1],
@@ -216,45 +216,7 @@ class Doctor:
 
         return yhat.flatten()
 
-    def test(self):
-
-        self.x = self.initial_state()
-
-        heart_name = self.pars.get("dataset")
-        hearts_path = os.path.join(os.getcwd(), "hearts")
-        doctor_heart_name = f"TEST_{self.name}_{heart_name}"
-        doctor_heart_name, path = dedicate_folder(doctor_heart_name, hearts_path)
-        ref_name = self.pars.get("reference_signal")
-        self.reference = np.load(os.path.join(os.getcwd(), 'hearts', ref_name, 'data', 'states_0_0.npy'))
-        test_time = self.reference.shape[0] *  (1 / self.heart_pars.get("sampling_frequency"))
-
-        print(f"Generating test '{doctor_heart_name}' for {test_time} simulation seconds")
-
-        # Override the duration of the simulation
-        original_t_start = self.heart_pars.get("t_start")
-        original_t_end = self.heart_pars.get("t_end")
-        t_end = test_time * 1000
-        t_start = 0
-        self.heart_pars.override("t_start", t_start)
-        self.heart_pars.override("t_end", t_end)        
-
-        # Start the model
-        heart = recorder.Recorder(
-            doctor_heart_name,
-            0,
-            path,
-            self.heart_pars
-        ).setup_interactive_mode(self.exploit)
-
-        heart.record()
-
-        # Restore heart params just in case : )
-        self.heart_pars.override("t_start", original_t_start)
-        self.heart_pars.override("t_end", original_t_end)
-
-        np.save(os.path.join(path, "states.npy"), np.array(heart.states))
-        np.save(os.path.join(path, "actions.npy"), np.array(heart.actions))
-        np.save(os.path.join(path, "reference.npy"), self.reference)
+        
         
     
         
@@ -263,11 +225,14 @@ class Doctor:
         
         print("Testing on train data")
 
+        return self.ftest()
+
         ys = []
         yhats = []
 
         for _ in range(cores):
 
+            states, actions = next(generator)
             states, actions = next(generator)
 
             states, actions, n_samples = self.normalize_batch(states, actions)
@@ -304,6 +269,10 @@ class Doctor:
         return ys, yhats
         
 
+    def ftest(self):
+        yhats = np.matmul(self.X, self.w_out.T)
+        return self.Y, yhats
+        
 
     def train(self, generator, save=True, verbal=True, parts=-1):
         
@@ -352,9 +321,13 @@ class Doctor:
   
         X_T = np.array(X)
         X = X_T.T
-        Y = np.array(Y).T
+        Y_T = np.array(Y)
+        Y = Y_T.T
         
         self.calc_w_out(X, X_T, Y)
+
+        self.X = X_T
+        self.Y = Y_T
 
         if save:
             self.save_model()
@@ -444,15 +417,17 @@ class Doctor:
         return np.array([
             [u_now[0, 0]],
             [u_now[1, 0]],
+            [u_now[2, 0]],
             [u_future[0, 0]],
             [u_future[1, 0]],
+            #[u_future[2, 0]],
             [1]
         ]) * self.u_scaling
 
     def __call__(self, u_now, u_future, non_pca_state=None):
 
-        u = self.input(u_now, u_future)        
-
+        u = self.input(u_now, u_future)
+           
         self.x = self.x * (1 - self.leaky_mask) + self.leaky_mask * np.tanh(
             self.w_in.dot(u * self.w_in_pca_penalty) +
             self.w.dot(self.x)

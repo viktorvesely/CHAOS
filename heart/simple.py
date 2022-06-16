@@ -8,6 +8,9 @@ from scipy.signal import butter, lfilter, freqz
 
 from reservoir import calc_sr
 
+every_nth = 3
+dt = 0.02
+
 def butter_lowpass(cutoff, fs, order=5):
     return butter(order, cutoff, fs=fs, btype='low', analog=False)
 
@@ -18,19 +21,19 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
 
 class Actions:
 
-    def __init__(self, fs, block_duration, t_start, cutoff=0.9, order=6, washout=50):
+    def __init__(self, fs, block_duration, t_start, cutoff=0.8, order=6, washout=50):
         self.block_duration = block_duration
-        period = 1 / fs
+        self.period = 1 / fs
         self.fs = fs
         self.cutoff = cutoff
         self.order = order
-        self.block_size = int(np.ceil(block_duration / period))
+        self.block_size = int(np.ceil(block_duration / self.period))
         self.t_start = None
         self.block = None
         self.washout = washout
         self.amp1 = self.amp2 = self.omega1 = self.omega2 = self.phi1 = self.phi2 = 0
         self.ampNoise = 0
-        self.head = self.washout
+        self.t_start = t_start
         self.generate_block(t_start)
 
     
@@ -46,25 +49,28 @@ class Actions:
         return np.random.random() * (_max - _min) + _min 
 
     def generate_block(self, t_start):
-        self.amp1 = self.r(2.5, 0.5)
-        self.amp2 = self.r(0.7, 0.1)
+        self.amp1 = self.r(1.5, 0.3)
+        self.amp2 = self.r(0.5, 0.08)
         self.omega1 = self.r(0.5, 0.08)
         self.omega2 = self.r(0.1, 0.01)
         self.phi1 = self.r(2 * np.pi, 0.0)
         self.phi2 = self.r(2 * np.pi, 0.0)
         self.ampNoise = self.r(3.5, 1.0)
 
-        self.head = self.washout
         self.block = self.get_data(t_start)
+        self.t_start = t_start
 
         self.block = butter_lowpass_filter(self.block, self.cutoff, self.fs, self.order)
     
     def __call__(self, t):
-        if self.head >= self.block.size:
-            self.generate_block(t)
+        delta = t - self.t_start
+        n = self.washout + int(delta / self.period)
 
-        value = self.block[self.head]
-        self.head += 1
+        if n >= self.block.size:
+            self.generate_block(t)
+            n = self.washout
+
+        value = self.block[n]
 
         return value
 
@@ -108,7 +114,7 @@ def solve(
     while t <= t_end:
         
         action = actor(t)
-        trajectory.append(state)
+        trajectory.append([state[0], state[1], driver(t)])
         actions.append(action)
         delta = dsdt(state, t, a, b, omega, action)
         state = state + delta * dt
@@ -121,20 +127,20 @@ def solve(
     return trajectory, actions
 
 
-def healthy(t_end=500):
+def healthy(every_nth, t_end=500):
     t_start = 0
     t_end = t_end
 
     omega = 1
     target, _ = solve(t_start, t_end, omega=omega)
 
-    return target[:, 0]
+    return target[::every_nth,:]
 
 
 def showdiff(t_end=200):
     t_start = 0
 
-    xh = healthy(t_end)
+    xh = healthy(1, t_end)
     states, _ = solve(t_start, t_end)
 
     plt.plot(states[:, 0], label="sad")
@@ -188,7 +194,7 @@ def architecture(pars):
 
     # ---------------------- W_in -----------------------------
 
-    n_input = 5
+    n_input = 6
 
     w_in_scale = pars.get("simple_w_in")
     w_in = np.random.random((n, n_input)) * 2 - 1
@@ -216,15 +222,91 @@ def architecture(pars):
     return w_in, w, w_out, leaky_mask
 
 
+
+
+def test(
+    doctor,
+    t_end,
+    a = 5,
+    b = 5,
+    omega = 3.37015,
+    verbal = True
+):
+    t_start = 0
+    period = dt * every_nth
+    t_next_action = t_start
+    last_action = 0
+
+    state = np.array([0.5, 0.0])
+    trajectory = []
+    actions = []
+    reference = healthy(1, t_end)
+    
+    t = t_start
+    while t <= t_end:
+        
+        if t >= t_next_action:
+            n = int((t - t_start) / dt) + doctor.d
+            u_now = np.array([
+                    [state[0]],
+                    [state[1]],
+                    [driver(t)]
+            ])
+            u_ref = np.array([
+                    [reference[n][0]],
+                    [reference[n][1]],
+                    [reference[n][2]]
+            ])
+            u_now = doctor.normalize_states(u_now)
+            u_ref = doctor.normalize_states(u_ref)
+            last_action = doctor(u_now, u_ref)[0, 0]
+
+            if n < doctor.washout_period + doctor.d:
+                last_action = 0
+
+            last_action = np.clip(last_action, -20, 20)
+
+            t_next_action = t_next_action + period
+
+        trajectory.append([state[0], state[1], driver(t)])
+        actions.append(last_action)
+        delta = dsdt(state, t, a, b, omega, last_action)
+        state = state + delta * dt
+        t += dt
+    
+    trajectory = np.array(trajectory)
+    actions = np.array(actions)
+    ts = np.linspace(t_start, t_end, trajectory.shape[0])
+
+    b = 500
+    e = 1200
+    if verbal:
+        _, ax = plt.subplots(2, 1, figsize=(12, 10), dpi=90)
+        
+        ax[0].plot(ts[b:e], trajectory[b:e,0], label="real x")
+        ax[0].plot(ts[b:e], trajectory[b:e,1], label="real y")
+        ax[0].plot(ts[b:e], reference[b:e,0], label="ref x")
+        ax[0].plot(ts[b:e], reference[b:e,1], label="ref y")
+        ax[0].set_ylabel("State")
+        ax[0].set_xlabel("Time")
+        ax[0].legend()
+
+        ax[1].plot(ts[b:e], actions[b:e])
+        ax[1].set_ylabel("Action")
+        ax[1].set_xlabel("Time")
+        
+        plt.show()
+
+    
+
 def generate_train_data(N, experiment_name, every_nth):
     
-    dt = 0.02
     period = dt * every_nth
     fs = 1 / period
 
     t_start = 0
     t_end = N * period + dt
-    actor = Actions(fs, 20, t_start)
+    actor = Actions(fs, 60, t_start)
     ts = np.linspace(t_start, t_end, N)
 
     states, actions = solve(t_start, t_end, dt=dt, actor=actor)
@@ -243,15 +325,31 @@ def generate_train_data(N, experiment_name, every_nth):
     np.save(join(path, 'data', 'actions_0_0.npy'), actions)
 
     print(f"Data generated ({states.shape[0]})")
+    print(f"Action bounds ({np.min(actions)}, {np.max(actions)})")
+    print(f"State bounds ({np.min(states)}, {np.max(states)})")
 
-    print(f"Min action: {np.min(actions)}, Max action: {np.max(actions)}")
+    actor = Actions(fs, 60, t_start)
+    states, actions = solve(t_start, t_end, dt=dt, actor=actor)
+    states = states[::every_nth]
+    actions = actions[::every_nth]
+    actions = np.reshape(actions, (-1, 1))
+
+    np.save(join(path, 'data', 'states_1_0.npy'), states)
+    np.save(join(path, 'data', 'actions_1_0.npy'), actions)
+
+    print(f"Validation data generated ({states.shape[0]})")
+    print(f"Action bounds ({np.min(actions)}, {np.max(actions)})")
+    print(f"State bounds ({np.min(states)}, {np.max(states)})")
+
 
     fig, ax = plt.subplots(2, 1, figsize=(12, 20), dpi=90)
     ax[0].plot(ts, states[:-1,0], label="x")
     ax[0].plot(ts, states[:-1,1], label="y")
     ax[0].legend()
     #ax[1].plot(states[0], states[1]) 
-    ax[1].plot(actions)
+    ax[1].plot(actions, label="action")
+    #ax[1].plot(drivers, label="sa node")
+    ax[1].legend()
     plt.show()
         
     
@@ -272,7 +370,7 @@ def show_actions():
 
 
 if __name__ == "__main__":
-    generate_train_data(20_000, "simple", every_nth=5)
+    generate_train_data(20_000, "simple", every_nth=every_nth)
     # exit()
     #healthy()
     # print(dsdt(np.array([0.5, 0.0]), 0.0, 5.0, 5.0, 3.37015, 0.0))

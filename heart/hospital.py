@@ -8,6 +8,7 @@ from loader import dedicate_folder, load_experiment_generator
 from settings import Params
 from doctor import Doctor
 from simple import architecture as simple_architecture
+from simple import test as test_model
 from recorder import Recorder
 
 import cProfile
@@ -447,7 +448,7 @@ def hyper_optimization_single_thread_training(
         f.write(export)
     
 def real_test(doctor):
-    doctor.test()
+    test_model(doctor, t_end = 1000)
 
 
 if __name__ == '__main__':
@@ -483,6 +484,7 @@ if __name__ == '__main__':
         if args.traincores > 1:
             print(f"""[{name}] Hyperoptimization using {args.hypercores} core(s) for hyper-optimization and {args.traincores} cores for training""")
             print("Not implemented right now .... exiting")
+            exit()
         else:
             print(f"""[{name}] Hyperoptimization runs using {args.hypercores} core(s) for hyper-optimization and single-threaded training""")
             hyper_optimization_single_thread_training(
@@ -518,7 +520,7 @@ if __name__ == '__main__':
     
     if args.test:
         print(f"[{name}] Real test time!")
-        doctor.test()
+        real_test(doctor)
 
 
 
