@@ -223,7 +223,7 @@ class Doctor:
 
     def test_train_data(self, generator, cores=1):
         
-        print("Testing on train data")
+        # print("Testing on train data")
 
         return self.ftest()
 

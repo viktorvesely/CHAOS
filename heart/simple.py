@@ -150,7 +150,7 @@ def showdiff(t_end=200):
 
 def chaos():
     t_start = 0
-    t_end = 150_00
+    t_end = 50_00
 
     pertubance = np.array([-0.000005, 0.0000001])
     
@@ -160,7 +160,7 @@ def chaos():
     fig, ax = plt.subplots(2, 1, figsize=(20, 10), dpi=90)
 
     b = 0
-    e = 150_000
+    e = 50_000
     diff = np.log(np.abs(n[:,0] - p[:, 0]))
     ax[0].plot(n[b:e, 0], n[b:e, 1], label="n")
     ax[0].plot(p[b:e, 0], p[b:e, 1], label="p")
@@ -241,22 +241,31 @@ def test(
     trajectory = []
     actions = []
     reference = healthy(1, t_end)
+    real_ref = []
     
     t = t_start
     while t <= t_end:
-        
+        n = int((t - t_start) / dt) + doctor.d
+
+        if n >= reference.shape[0]:
+            break
+
+        ref = reference[n]
+
         if t >= t_next_action:
-            n = int((t - t_start) / dt) + doctor.d
+
+            
             u_now = np.array([
                     [state[0]],
                     [state[1]],
                     [driver(t)]
             ])
             u_ref = np.array([
-                    [reference[n][0]],
-                    [reference[n][1]],
-                    [reference[n][2]]
+                    [ref[0]],
+                    [ref[1]],
+                    [ref[2]]
             ])
+            
             u_now = doctor.normalize_states(u_now)
             u_ref = doctor.normalize_states(u_ref)
             last_action = doctor(u_now, u_ref)[0, 0]
@@ -269,6 +278,7 @@ def test(
             t_next_action = t_next_action + period
 
         trajectory.append([state[0], state[1], driver(t)])
+        real_ref.append(ref)
         actions.append(last_action)
         delta = dsdt(state, t, a, b, omega, last_action)
         state = state + delta * dt
@@ -276,17 +286,19 @@ def test(
     
     trajectory = np.array(trajectory)
     actions = np.array(actions)
+    real_ref = np.array(real_ref)
     ts = np.linspace(t_start, t_end, trajectory.shape[0])
 
     b = 500
     e = 1200
+    d = doctor.d
     if verbal:
         _, ax = plt.subplots(2, 1, figsize=(12, 10), dpi=90)
         
         ax[0].plot(ts[b:e], trajectory[b:e,0], label="real x")
         ax[0].plot(ts[b:e], trajectory[b:e,1], label="real y")
-        ax[0].plot(ts[b:e], reference[b:e,0], label="ref x")
-        ax[0].plot(ts[b:e], reference[b:e,1], label="ref y")
+        ax[0].plot(ts[b:e], real_ref[b:e,0], label="ref x")
+        ax[0].plot(ts[b:e], real_ref[b:e,1], label="ref y")
         ax[0].set_ylabel("State")
         ax[0].set_xlabel("Time")
         ax[0].legend()
@@ -296,6 +308,8 @@ def test(
         ax[1].set_xlabel("Time")
         
         plt.show()
+    
+    return trajectory, actions, real_ref
 
     
 
@@ -370,11 +384,11 @@ def show_actions():
 
 
 if __name__ == "__main__":
-    generate_train_data(20_000, "simple", every_nth=every_nth)
+    #generate_train_data(20_000, "simple", every_nth=every_nth)
     # exit()
     #healthy()
     # print(dsdt(np.array([0.5, 0.0]), 0.0, 5.0, 5.0, 3.37015, 0.0))
-    #chaos()
+    chaos()
     #showdiff()
 
     

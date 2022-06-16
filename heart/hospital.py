@@ -98,6 +98,18 @@ def boot_doctor_train(name, path, doc_pars, core=0, save=True):
 
     return doctor
 
+def calc_NRMSE(ys, yhats):
+    # Axis 0: time
+    # Axis 1: features
+
+    delta = np.mean((yhats - ys) * (yhats - ys), axis=1)
+    variances = np.var(ys, axis=1)
+    NMSE = delta / variances
+    NRMSE = np.sqrt(NMSE)
+    NRMSE = np.mean(NRMSE)
+
+    return NRMSE
+    
 
 def test(doctor):
     doc_pars = doctor.pars
@@ -113,13 +125,7 @@ def test(doctor):
     ys = ys.T
     yhats = yhats.T
 
-    delta = np.mean((yhats - ys) * (yhats - ys), axis=1)
-    variances = np.var(ys, axis=1)
-    NMSE = delta / variances
-    NRMSE = np.sqrt(NMSE)
-    NRMSE = np.mean(NRMSE)
-    
-    return NRMSE
+    return calc_NRMSE(ys, yhats)
 
 def load_model(name, core=0, non_heart_args=None):
 
@@ -193,7 +199,7 @@ def train_single_thread(
 
 def train_single_thread_pool_wrapper(args):
     name, path, doctor_pars, parts, core, non_heart_args = args
-    NRMSE, doctor = train_single_thread(
+    _, doctor = train_single_thread(
         name,
         path,
         doctor_pars,
@@ -205,6 +211,9 @@ def train_single_thread_pool_wrapper(args):
     )
 
     doctor.save_model(core=core)
+
+    print(f"Testing {core}")
+    NRMSE = real_test(doctor, verbal=False)
 
     hyper_params = doctor_pars.get('__hyper_params')
     return (
@@ -447,8 +456,13 @@ def hyper_optimization_single_thread_training(
     with open(os.path.join(path, 'results.csv'), "w", encoding='utf-8') as f:
         f.write(export)
     
-def real_test(doctor):
-    test_model(doctor, t_end = 1000)
+def real_test(doctor, verbal=True):
+    trajectory, actions, reference = test_model(doctor, t_end = 1000, verbal=verbal)
+    NRMSE = calc_NRMSE(reference[doctor.washout_period:, :].T, trajectory[doctor.washout_period:, :].T)
+
+    if verbal:
+        print(f"Test NRMSE: {NRMSE}")
+    return NRMSE
 
 
 if __name__ == '__main__':
