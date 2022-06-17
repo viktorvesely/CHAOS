@@ -271,6 +271,10 @@ class CompGraphs {
     start() {
 
     }
+
+    end() {
+        
+    }
 }
 
 class IntroGraph {
@@ -327,6 +331,10 @@ class IntroGraph {
     }
 
     start() {
+
+    }
+
+    end() {
 
     }
 }
@@ -398,5 +406,9 @@ class ExtendIntro {
         this.state = this.introGraph.state;
         this.xtrail = this.introGraph.xtrail;
         this.t = this.introGraph.t;
+    }
+
+    end() {
+
     }
 }

@@ -1,6 +1,6 @@
 {
     "t_start": 0,
-    "t_end": 10000,
+    "t_end": 462.78,
     "BPS": 1.7,
     "stim_start": 1,
     "stim_end": 40,
@@ -11,7 +11,7 @@
     "periodicY": true,
     "min_resistivity": 7,
     "max_resistivity": 30,
-    "resistivity_path": "./healthy_mask.png",
+    "resistivity_path": "./new_mask.png",
     "resistivity_channel": 2,
     "min_k": 3,
     "max_k": 9,

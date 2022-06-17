@@ -5,18 +5,25 @@ class SlideEvent {
 
     start(direction) {
         this.action();
+        frames[activeFrame].end();
         activeFrame += direction;
 
         if (activeFrame >= frames.length) {
             activeFrame = 0;
         }
-        
+
         if (activeFrame < 0) {
             activeFrame = frames.length - 1;
         }
+
+        frames[activeFrame].start();
     }
 
     draw() {
+
+    }
+
+    end() {
 
     }
 }

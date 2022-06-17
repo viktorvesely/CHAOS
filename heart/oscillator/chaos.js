@@ -46,20 +46,6 @@ class Chaos {
             this.cols.push(randCol());
         }
 
-        // this.cols = [
-        //     "#07c9fa",
-        //     "#ffee00",
-        //     "#ff00d9",
-        //     "#ffffff"
-        // ]
-
-        // this.states = [
-        //     [0.5, 0.0],
-        //     [0.55, 0.05],
-        //     [0.45, 0.0],
-        //     [0.45, -0.05]
-        // ];
-
         this.trails = [];
 
         this.states.forEach(state => {
@@ -101,6 +87,10 @@ class Chaos {
 
     start() {
 
+    }
+    
+    end() {
+        this.slower();
     }
 
 

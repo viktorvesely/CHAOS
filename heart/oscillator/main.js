@@ -67,6 +67,7 @@ var extendIntro = new ExtendIntro(width, height, 0, 0, intro);
 var compareGraph = new CompGraphs(width, height, 0, 0);
 var phaseTime = new PhaseTime(width, height, 0, 0);
 var chaos = new Chaos(width, height, 0, 0);
+var heart = new Heart(width, height, 0, 0, h_v_data, c_v_data, rho);
 
 var frames = [
     intro,
@@ -77,7 +78,8 @@ var frames = [
     new SlideEvent(() => { chaos.faster(); }),
     chaos,
     new SlideEvent(() => { chaos.slower(); }),
-    chaos
+    chaos,
+    heart
 ]
 
 var activeFrame = 0;
@@ -104,6 +106,7 @@ function draw() {
 
 
     if (press("d")) {
+        frames[activeFrame].end();
         activeFrame++;
         if (activeFrame >= frames.length) {
             activeFrame = 0;
@@ -112,6 +115,7 @@ function draw() {
     }
 
     if (press("a")) {
+        frames[activeFrame].end();
         activeFrame--;
         if (activeFrame < 0) {
             activeFrame = frames.length - 1;
