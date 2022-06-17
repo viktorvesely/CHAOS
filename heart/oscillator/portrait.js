@@ -16,6 +16,7 @@ class Portrait {
         this.yColor = "#00ff00";
 
         this.title = "Phase portrait"
+        this.lineWidth = 2.5;
     }
 
     stateToCtx(state) {
@@ -51,7 +52,7 @@ class Portrait {
         let from, to;
     
         from = this.stateToCtx(trail[0]);
-        ctx.lineWidth = 2.5 ;
+        ctx.lineWidth = this.lineWidth;
         ctx.beginPath();
         ctx.moveTo(from[0], from[1]);
         for (let i = 1; i < trail.length; i++) {

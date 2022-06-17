@@ -62,10 +62,22 @@ var keys = {
 
 var depressedKeys = {};
 
+var intro = new IntroGraph(width, height, 0, 0);
+var extendIntro = new ExtendIntro(width, height, 0, 0, intro);
+var compareGraph = new CompGraphs(width, height, 0, 0);
+var phaseTime = new PhaseTime(width, height, 0, 0);
+var chaos = new Chaos(width, height, 0, 0);
+
 var frames = [
-    new IntroGraph(width, height, 0, 0),
-    new CompGraphs(width, height, 0, 0),
-    new PhaseTime(width, height, 0, 0)
+    intro,
+    extendIntro,
+    compareGraph,
+    phaseTime,
+    chaos,
+    new SlideEvent(() => { chaos.faster(); }),
+    chaos,
+    new SlideEvent(() => { chaos.slower(); }),
+    chaos
 ]
 
 var activeFrame = 0;
@@ -96,7 +108,7 @@ function draw() {
         if (activeFrame >= frames.length) {
             activeFrame = 0;
         }
-        frames[activeFrame].start();
+        frames[activeFrame].start(1);
     }
 
     if (press("a")) {
@@ -105,7 +117,7 @@ function draw() {
             activeFrame = frames.length - 1;
         }
 
-        frames[activeFrame].start();
+        frames[activeFrame].start(-1);
     }
 
     frames[activeFrame].draw(ctx);
