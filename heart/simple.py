@@ -86,6 +86,14 @@ def dsdt(state, t, a, b, omega, action):
     # ])
     return delta
 
+def dsdtlorenz(state, sigma, rho, beta):
+    x, y, z = state
+    return np.array([
+        sigma * (y - x),
+        x * (rho - z) - y,
+        x * y - beta * z
+    ])
+
 def driver(t, omega=3.37015, b=5.0):
     return b * np.cos(t * omega)
 
@@ -289,9 +297,8 @@ def test(
     real_ref = np.array(real_ref)
     ts = np.linspace(t_start, t_end, trajectory.shape[0])
 
-    b = 500
-    e = 1200
-    d = doctor.d
+    b = 1000
+    e = 1900
     if verbal:
         _, ax = plt.subplots(2, 1, figsize=(12, 10), dpi=90)
         

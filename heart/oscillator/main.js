@@ -2,44 +2,31 @@
 var canvas = document.getElementById("screen");
 var ctx = canvas.getContext("2d");
 var width = -1, height = -1;
-const trailSize = 100;
-var s0 = [0.5, 0.0];
-var state = s0;
-var hState = [0.50000001, 0.00000001];
-var trail = [state];
-var hTrail = [hState];
 
 const omega = 3.37015;
 const dt = 0.02;
 const a = 5, b = 5;
-const min = -8, max = 8;
-const range = (max - min);
-var rescaleX = -1;
-var rescaleY = -1;
 
-function resize() {
-    let s = Math.min(window.innerHeight, window.innerWidth) - 5;
-    width = height = s;
-    canvas.width = width;
-    canvas.height = height;
-    rescaleX = width / range;
-    rescaleY = height / range;
-}
+function updateMultiple(states, trails, trailSize, t, dt, nCycles, omega) {
+    for (let s = 0; s < states.length; ++s) {
+        let state = states[s];
+        let local_t = t;
+        for (let i = 0; i < nCycles; i++) {
+            let delta = dsdt(state, local_t, a, b, omega, 0);
+            local_t += dt;
+            state = update(state, delta, dt);
+        }
 
-resize();
+        states[s] = state;
+        trails[s].push(state);
 
-function add(vec1, vec2) {
-    return [
-        vec1[0] + vec2[0],
-        vec1[1] + vec2[1]
-    ]
-}
+        if (trails[s].length > trailSize) {
+            trails[s].shift();
+        }
+    }
 
-function scale(vec, scalar) {
-    return [
-        vec[0] * scalar,
-        vec[1] * scalar
-    ]
+    return t + dt * nCycles;
+
 }
 
 function update(state, delta, dt) {
@@ -50,7 +37,6 @@ function update(state, delta, dt) {
 }
 
 function dsdt(state, t, a, b, omega, action) {
-
     let x = state[0];
     let y = state[1];
     let delta = [
@@ -61,34 +47,42 @@ function dsdt(state, t, a, b, omega, action) {
 
 }
 
-function rescale(state) {
-    return [
-        (state[0] - min) * rescaleX,
-        (state[1] - min) * rescaleY
-    ]
+function resize() {
+    height = window.innerHeight - 5;
+    width = window.innerWidth - 5;
+    canvas.width = width;
+    canvas.height = height;
 }
 
-var t = 0.0;
-var actionStrength = 1.0;
-var nCycles = 5;
+resize();
+
 var keys = {
     "a": false, "d": false, "w": false, "s": false
 };
 
+var depressedKeys = {};
 
-function drawTrail(trail, healthy) {
-    let from, to;
+var frames = [
+    new IntroGraph(width, height, 0, 0),
+    new CompGraphs(width, height, 0, 0),
+    new PhaseTime(width, height, 0, 0)
+]
 
-    from = rescale(trail[0]);
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(from[0], from[1]);
-    for (let i = 1; i < trail.length; i++) {
-        to = rescale(trail[i]);
-        ctx.lineTo(to[0], to[1]);
+var activeFrame = 0;
+
+function updateDepress() {
+    for (const [key, value] of Object.entries(keys)) {
+        if (value === false) {
+            depressedKeys[key] = true;
+        }
+        else {
+            depressedKeys[key] = false;
+        }
     }
-    ctx.strokeStyle = healthy ? "#fc03ec" : "#0000ff";
-    ctx.stroke();
+}
+
+function press(key) {
+    return keys[key] && depressedKeys[key];
 }
 
 function draw() {
@@ -96,50 +90,27 @@ function draw() {
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, width, height);
 
-    let action = 0.0;
-    if (keys["w"])  {
-        actionStrength += 0.01;
-    }
-    if (keys["s"])  {
-        actionStrength -= 0.01;
-    }
-    if (keys["a"])  {
-        action -= actionStrength;
-        console.log(action);
-    }
-    if (keys["d"])  {
-        action += actionStrength;
-        console.log(action);
+
+    if (press("d")) {
+        activeFrame++;
+        if (activeFrame >= frames.length) {
+            activeFrame = 0;
+        }
+        frames[activeFrame].start();
     }
 
-    // let delta = dsdt(state, t, a, b, omega, action);
-    // let hDelta = dsdt(hState, t, a, b, omega, 0.0);
-    // t += dt;
-    // state = update(state, delta, dt);
-    // hState = update(hState, hDelta, dt);
+    if (press("a")) {
+        activeFrame--;
+        if (activeFrame < 0) {
+            activeFrame = frames.length - 1;
+        }
 
-    for (let i = 0; i < nCycles; i++) {
-        let delta = dsdt(state, t, a, b, omega, action);
-        let hDelta = dsdt(hState, t, a, b, omega, action);
-        t += dt;
-        state = update(state, delta, dt);
-        hState = update(hState, hDelta, dt);
+        frames[activeFrame].start();
     }
 
-    trail.push(state);
-    hTrail.push(hState);
+    frames[activeFrame].draw(ctx);
 
-    if (trail.length > trailSize) {
-        trail.shift();
-    }
-
-    if (hTrail.length > trailSize) {
-        hTrail.shift();
-    }
-
-    drawTrail(trail, false);
-    drawTrail(hTrail, true);
-
+    updateDepress();
     requestAnimationFrame(draw);
 }
 
