@@ -25,6 +25,7 @@ class Graph {
     }
 
     pos01ToVal(pos) {
+
         let tbound = [
             this.t + this.twindow[0],
             this.t + this.twindow[1]
@@ -34,7 +35,7 @@ class Graph {
         
         return [
             pos[0] * (tbound[1] - tbound[0]) + tbound[0],
-            pos[1] * (vbound[1] - vbound[0]) + vbound[0]
+            (1 - pos[1]) * (vbound[1] - vbound[0]) + vbound[0]
         ]
     }
 
@@ -60,6 +61,8 @@ class Graph {
             (val - vbound[0]) / (vbound[1] - vbound[0])
         ]
 
+        pos01[1] = 1 - pos01[1];
+
         if (pos01[0] < 0 || pos01[0] > 1 || pos01[1] < 0 || pos01[1] > 1) {
             return false;
         }
@@ -71,10 +74,12 @@ class Graph {
     }
 
     drawTitle(ctx) {
-        let pos = this.pos01toCtx([0.45, 0.1]);
-        ctx.font = "22px Verdana";
+        let pos = this.pos01toCtx([0.5, 0.1]);
+        ctx.font = titleFont;
         ctx.fillStyle = this.axisColor;
-        ctx.fillText(this.title, pos[0], pos[1]);
+        ctx.textAlign = "center";
+        ctx.fillText(this.title, pos[0], pos[1]);   
+        ctx.textAlign = 'start';
     }
 
     axis(ctx) {
@@ -118,18 +123,18 @@ class Graph {
 
         }
 
-        ctx.font = "18px Verdana";
-        ctx.fillStyle = this.color;
-        ctx.fillText("Time", toA[0] - 100, toA[1] + 25);
+        ctx.font = otherFont;
+        ctx.fillStyle = this.axisColor;
+        ctx.fillText("Time", toA[0] - 100, toA[1] + 35);
     }
 
-    legend(ctx, xCol, yCol, xtext="AP", ytext="AP/dt", xoffset=120, yoffset=120) {
+    legend(ctx, xCol, yCol, xtext="AP", ytext="AP/dt", xoffset=160, yoffset=120) {
     
         ctx.lineWidth = 2.5;
         if (xtext.length > 0) {
             let row1 = this.pos01toCtx([1.0, 0.22]);
     
-            ctx.font = "14px Verdana";
+            ctx.font = legendFont;
             ctx.fillStyle = this.axisColor;
             ctx.fillText(xtext, row1[0] - xoffset, row1[1] + 5);
             ctx.beginPath();
@@ -149,6 +154,25 @@ class Graph {
             ctx.strokeStyle = yCol;
             ctx.stroke();
         }
+    }
+
+    make_legend(ctx, cols, texts, offsets) {
+        let n = cols.length;
+        ctx.font = legendFont;
+        ctx.fillStyle = this.axisColor;
+        let delta = this.pos01toCtx([0.0, 0.04])[1];
+        let base = this.pos01toCtx([1.0, 0.22]);
+
+        for (let i = 0; i < n; i++) {
+            let y = base[1] + delta * i;
+            ctx.fillText(texts[i], base[0] - offsets[i], y);
+            ctx.beginPath();
+            ctx.moveTo(base[0] - 80, y - 5);
+            ctx.lineTo(base[0] - 20, y - 5);
+            ctx.strokeStyle = cols[i];
+            ctx.stroke();
+        }
+
     }
 
     draw(ctx, trail, index, dt, scrolling) {
@@ -195,8 +219,8 @@ class CompGraphs {
         this.y0 = y0;
 
         this.xColor = "#0000ff";
-        this.yColor = "#00ff00";
-        this.axisColor = "#ffffff";
+        this.yColor = yColor;
+        this.axisColor = primaryColor;
 
         this.hgraph = new Graph(
             x0, y0,
@@ -247,7 +271,7 @@ class CompGraphs {
         this.graph.color = this.axisColor;
         this.graph.axis(ctx);
         this.graph.drawTitle(ctx);
-        this.graph.legend(ctx, this.xColor, this.yColor, "AP", "AP/dt", 110, 130);
+        this.graph.legend(ctx, this.xColor, this.yColor, "AP", "AP/dt", 115, 140);
 
         this.hgraph.color = this.yColor;
         this.hgraph.pushTime();
@@ -258,12 +282,12 @@ class CompGraphs {
         this.hgraph.color = this.axisColor;
         this.hgraph.axis(ctx);
         this.hgraph.drawTitle(ctx);
-        this.hgraph.legend(ctx, this.xColor, this.yColor, "AP", "AP/dt", 110, 130);
+        this.hgraph.legend(ctx, this.xColor, this.yColor, "AP", "AP/dt", 115, 140);
 
         ctx.beginPath();
         ctx.moveTo(this.w / 2, this.y0);
         ctx.lineTo(this.w / 2, this.y0 + this.h);
-        ctx.strokeStyle = "#ffffff";
+        ctx.strokeStyle = primaryColor;
         ctx.lineWidth = 1.5;
         ctx.stroke();
     }
@@ -292,8 +316,8 @@ class IntroGraph {
         this.y0 = y0;
 
         this.xColor = "#0000ff";
-        this.yColor = "#00ff00";
-        this.axisColor = "#ffffff";
+        this.yColor = yColor;
+        this.axisColor = primaryColor;
 
         this.trailSize = 500;
 
@@ -326,7 +350,7 @@ class IntroGraph {
         this.graph.color = this.axisColor;
         this.graph.axis(ctx);
         this.graph.drawTitle(ctx);
-        this.graph.legend(ctx, this.xColor, this.yColor, "Action potential", "", 200);
+        this.graph.legend(ctx, this.xColor, this.yColor, "Action potential", "", 240);
 
     }
 
@@ -355,8 +379,8 @@ class ExtendIntro {
         this.y0 = y0;
 
         this.xColor = "#0000ff";
-        this.yColor = "#00ff00";
-        this.axisColor = "#ffffff";
+        this.yColor = yColor;
+        this.axisColor = primaryColor;
 
         this.trailSize = 500;
 
@@ -397,7 +421,7 @@ class ExtendIntro {
         this.graph.color = this.axisColor;
         this.graph.axis(ctx);
         this.graph.drawTitle(ctx);
-        this.graph.legend(ctx, this.xColor, this.yColor, "Action potential", "Rate of change", 200, 200);
+        this.graph.legend(ctx, this.xColor, this.yColor, "Action potential", "Rate of change", 240, 230);
 
     }
 

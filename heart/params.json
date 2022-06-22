@@ -34,7 +34,7 @@
     "min_action": 0.0,
     "max_Vm": 50.0,
     "min_Vm": -90.0,
-    "actor": "",
+    "actor": "white",
     "noise_sinus_settings": {
         "frequency": 70
     },

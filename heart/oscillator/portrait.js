@@ -6,14 +6,13 @@ class Portrait {
         this.w = width;
         this.h = height;
 
-
         this.xbounds = [-6, 6];
         this.ybounds = [-9, 9];
         this.x0 = x0;
         this.y0 = y0;
 
         this.xColor = "#0000ff";
-        this.yColor = "#00ff00";
+        this.yColor = yColor;
 
         this.title = "Phase portrait"
         this.lineWidth = 2.5;
@@ -69,9 +68,11 @@ class Portrait {
     renderTitle(ctx) {
         let pos = this.pos01ToCtx([0.5, 0.1]);
 
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "22px Verdana";
-        ctx.fillText(this.title, pos[0] - 50, pos[1]);
+        ctx.fillStyle = primaryColor;
+        ctx.font = titleFont;
+        ctx.textAlign = 'center';
+        ctx.fillText(this.title, pos[0], pos[1]);
+        ctx.textAlign = 'start';
     }
 
     axis(ctx, lb01, lt01, rb01, xlab, ylab) {
@@ -91,10 +92,10 @@ class Portrait {
         ctx.lineTo(lt[0], lt[1]);
         ctx.stroke();
 
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "15px Verdana";
+        ctx.fillStyle = primaryColor;
+        ctx.font = legendFont;
         ctx.fillText(xlab, lb[0] + (rb[0] - lb[0]) / 2, rb[1] + 19);
-        ctx.fillText(ylab, lb[0] - 50, lt[1] + (lb[1] - lt[1]) / 2);
+        ctx.fillText(ylab, lb[0] - 60, lt[1] + (lb[1] - lt[1]) / 2);
     }
     
 }

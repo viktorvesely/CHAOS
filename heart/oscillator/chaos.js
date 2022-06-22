@@ -1,9 +1,11 @@
 
 
-function randCol() {
+function randCol(h) {
     const min = 0;
     const max = 360;
-    return hslToHex(Math.floor(Math.random() * (max - min) + min), 100, 50);
+    //return hslToHex(Math.floor(Math.random() * (max - min) + min), 100, 50);
+    return hslToHex(h, 100, 50);
+
 }
 
 function hslToHex(h, s, l) {
@@ -32,18 +34,22 @@ class Chaos {
         const nStates = 30;
 
         this.states = [baseState];
-        this.cols = [randCol()];
+        this.cols = [randCol(0)];
+        
+        let step = 360 / (nStates + 2);
+        let h = step;
 
         for (let i = 0; i < nStates - 1; i++) {
             let phi = Math.random() * Math.PI * 2;
-            let r = Math.random() * 0.05;
+            let r = Math.random() * 0.09;
             
             this.states.push([
                 baseState[0] + Math.cos(phi) * r,
                 baseState[1] + Math.sin(phi) * r
             ])
 
-            this.cols.push(randCol());
+            this.cols.push(randCol(h));
+            h += step;
         }
 
         this.trails = [];
