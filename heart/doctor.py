@@ -1,4 +1,3 @@
-from re import S
 import numpy as np
 import os
 from scipy import sparse as sp
@@ -113,6 +112,9 @@ class Doctor:
         )
 
         self.reference = None
+
+        self.X = None
+        self.Y = None
     
 
     def init_pca(self, pca_dim):
@@ -261,7 +263,9 @@ class Doctor:
 
     def test_train_data(self, generator, cores=1):
         
-        print("Testing on train data")
+        print("Testing on valid data (only if parts is 1)")
+
+        # return self.ftest()
 
         ys = []
         yhats = []
@@ -269,6 +273,7 @@ class Doctor:
         for _ in range(cores):
 
             states, actions = next(generator)
+            #states, actions = next(generator)
 
             states, actions, n_samples = self.normalize_batch(states, actions)
             self.x = self.initial_state()
@@ -303,6 +308,8 @@ class Doctor:
      
         return ys, yhats
         
+    def ftest(self):
+        return self.Y, np.matmul(self.X, self.w_out.T)
 
 
     def train(self, generator, save=True, verbal=True, parts=-1):
@@ -352,7 +359,11 @@ class Doctor:
   
         X_T = np.array(X)
         X = X_T.T
-        Y = np.array(Y).T
+        Y_T = np.array(Y)
+        Y = Y_T.T
+
+        self.X = X_T
+        self.Y = Y_T
         
         self.calc_w_out(X, X_T, Y)
 
@@ -437,17 +448,17 @@ class Doctor:
 
 
     def input(self, u_now, u_future):
-        # self.u_now = u_now
-        # self.u_future = u_future
-        # return self.fast_append_and_insert_one(u_now, u_future)
+        self.u_now = u_now
+        self.u_future = u_future
+        return self.fast_append_and_insert_one(u_now, u_future)
 
-        return np.array([
-            [u_now[0, 0]],
-            [u_now[1, 0]],
-            [u_future[0, 0]],
-            [u_future[1, 0]],
-            [1]
-        ]) * self.u_scaling
+        # return np.array([
+        #     [u_now[0, 0]],
+        #     [u_now[1, 0]],
+        #     [u_future[0, 0]],
+        #     [u_future[1, 0]],
+        #     [1]
+        # ]) * self.u_scaling
 
     def __call__(self, u_now, u_future, non_pca_state=None):
 

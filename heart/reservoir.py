@@ -42,6 +42,20 @@ def get_neighbours(heart_pos, heart_shape, indicies, manhattan=1, passable="top"
             
     return neighbours
 
+def get_sparse_matrix(shape, sparsity, pars):
+
+        mu, sd = pars
+        other = sp.random(
+            shape[0],
+            shape[1], 
+            density=sparsity,
+            format="csr"
+        ) * sd
+    
+        other.data = other.data + mu
+
+        return other.toarray()
+
 def heartlike(
     pars,
     heart_pars
@@ -75,34 +89,33 @@ def heartlike(
             )
             src = indicies[i, j]
             for neighbour, distance in neighbours:
-                heart[src, neighbour] = normal(w_heart_heart) * (1 / (distance + 1))
+                heart[src, neighbour] = normal(w_heart_heart) * (1 / (distance * 0.1 + 1))
     
     if n_other > 0:
-        o_o_mu, o_o_sd = w_other_other
-        other = sp.random(
-            n_other,
-            n_other, 
-            density= 1 - pars.get("local_other_density"),
-            format="csr"
-        ) * o_o_sd
-    
-        other.data = other.data + o_o_mu
+        sparsity = 1 - pars.get("local_other_density")
+        other = get_sparse_matrix((n_other, n_other), sparsity, w_other_other)
         
         # From other to heart
-        M1 = normal(w_other_heart, size=(n_local, n_other)) # np.random.random((n_local, n_other)) * (w_max - w_min) + w_min
+        M1 = get_sparse_matrix((n_local, n_other), sparsity, w_other_heart) # np.random.random((n_local, n_other)) * (w_max - w_min) + w_min
 
         # From heart to other
-        M2 = normal(w_heart_other, size=(n_other, n_local)) # np.zeros((n_other, n_local))  
+        M2 = get_sparse_matrix((n_other, n_local), sparsity, w_heart_other)# np.zeros((n_other, n_local))          
+        
+        # sr = calc_sr(heart)
+        # heart = (heart / sr) * spectral_radius
+
+        # sr = calc_sr(other)
+        # other = (other / sr) * spectral_radius
 
         w = np.block([
             [heart, M1],
-            [M2, other.toarray()]
+            [M2, other]
         ])
     else:
         w = heart
+    
 
     sr = calc_sr(w)
-
     w = (w / sr) * spectral_radius
 
     # ---------------------- W_in-----------------------------
@@ -143,7 +156,7 @@ def heartlike(
     w_in[:,:-1] = w_in_no_bias
 
     # Setup bias
-    w_in_bias = pars.get("w_in_bias")
+    w_in_bias = pars.get("local_w_in_bias")
     w_in[:,-1] = normal(w_in_bias, size=n_reservoir)
 
     # ---------------------- W_out----------------------------
@@ -281,7 +294,7 @@ def spatial(pars, heart_pars):
                     for x_base in range(x_per_u):
                         x_index = x_per_u * u_base + x_base
                         neighbour_index = neighbour + offset
-                        w_in[x_index, neighbour_index] = normal(w_in_pars) / (distance * 0.5 + 1)
+                        w_in[x_index, neighbour_index] = normal(w_in_pars) / (distance * 0.2 + 1)
     
                     
 
@@ -306,7 +319,7 @@ def spatial(pars, heart_pars):
     
     return w_in, w, w_out, leaky_mask
    
-    
+
 
 def material(pars, heart_pars):
 

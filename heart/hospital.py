@@ -117,6 +117,8 @@ def test(doctor):
     NMSE = delta / variances
     NRMSE = np.sqrt(NMSE)
     NRMSE = np.mean(NRMSE)
+
+    # = \frac{\sum_{t=1}^{T} (\hat{x} - x)^2}{T}  
     
     return NRMSE
 
@@ -467,7 +469,8 @@ if __name__ == '__main__':
     if args.testload:
         print(f"[{args.name}] Loading and real test")
         doctor = load_model(args.name, core=0, non_heart_args=non_heart_args)
-        doctor.test()
+        NRMSE = test(doctor)
+        #doctor.test()
         exit()
 
     name, path = dedicate_folder(

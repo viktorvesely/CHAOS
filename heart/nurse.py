@@ -38,7 +38,7 @@ class Nurse:
         self.doc_pars = doctor.pars
         self.heart_pars = doctor.heart_pars
 
-        log_stuff = 10
+        log_stuff = 15
 
         # n_local = self.heart_pars.get("gridx") * self.heart_pars.get("gridy")
         # n_other = self.doc_pars.get("local_n_other")
