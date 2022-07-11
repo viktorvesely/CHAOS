@@ -18,6 +18,33 @@ class Portrait {
         this.lineWidth = 2.5;
     }
 
+    disLegend(ctx, lwref, lwreal, colRef, colReal) {
+        ctx.lineWidth = lwref;
+        
+        let row1 = this.pos01ToCtx([1.0, 0.22]);
+
+        ctx.font = legendFont;
+        ctx.fillStyle = primaryColor;
+        ctx.fillText("Reference", row1[0] - 180, row1[1] + 5);
+        ctx.beginPath();
+        ctx.moveTo(row1[0] - 80, row1[1]);
+        ctx.lineTo(row1[0] - 20, row1[1]);
+        ctx.strokeStyle = colRef;
+        ctx.stroke();
+
+        ctx.lineWidth = lwreal;
+
+        let row2 = this.pos01ToCtx([1.0, 0.26]);
+
+        ctx.fillText("Real", row2[0] - 140, row2[1] + 5);
+        ctx.beginPath();
+        ctx.moveTo(row2[0] - 80, row2[1]);
+        ctx.lineTo(row2[0] - 20, row2[1]);
+        ctx.strokeStyle = colReal;
+        ctx.stroke();
+    
+    }
+
     stateToCtx(state) {
         
         let x = state[0];
@@ -47,20 +74,39 @@ class Portrait {
         ]
     }
 
-    drawTrail(ctx, trail, color) {
+    drawTrail(ctx, trail, color, startIndex=-1, endIndex=-1) {
         let from, to;
-    
-        from = this.stateToCtx(trail[0]);
-        ctx.lineWidth = this.lineWidth;
-        ctx.beginPath();
-        ctx.moveTo(from[0], from[1]);
-        for (let i = 1; i < trail.length; i++) {
-            to = this.stateToCtx(trail[i]);
-            if (to === false) {
-                break;
+
+        if (startIndex !== -1) {
+            from = this.stateToCtx(trail[startIndex]);
+            let length = startIndex - endIndex;
+            ctx.lineWidth = this.lineWidth;
+            ctx.beginPath();
+            ctx.moveTo(from[0], from[1]);
+
+            for (let i = 1; i < length; i++) {
+                to = this.stateToCtx(trail[startIndex - i]);
+                if (to === false) {
+                    break;
+                }
+                ctx.lineTo(to[0], to[1]);
             }
-            ctx.lineTo(to[0], to[1]);
+        } else {
+
+            from = this.stateToCtx(trail[0]);
+            ctx.lineWidth = this.lineWidth;
+            ctx.beginPath();
+            ctx.moveTo(from[0], from[1]);
+
+            for (let i = 1; i < trail.length; i++) {
+                to = this.stateToCtx(trail[i]);
+                if (to === false) {
+                    break;
+                }
+                ctx.lineTo(to[0], to[1]);
+            }
         }
+
         ctx.strokeStyle = color;
         ctx.stroke();
     }

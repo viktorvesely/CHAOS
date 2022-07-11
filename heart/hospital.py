@@ -458,7 +458,17 @@ def hyper_optimization_single_thread_training(
     
 def real_test(doctor, verbal=True):
     trajectory, actions, reference = test_model(doctor, t_end = 1000, verbal=verbal)
+    
     NRMSE = calc_NRMSE(reference[doctor.washout_period:, :].T, trajectory[doctor.washout_period:, :].T)
+    
+    print(trajectory.shape)
+
+    with open("./oscillator/discussion.js", 'w') as fi:
+        jString = "var reference_traj = {}; var real_traj = {};".format(
+            json.dumps(reference[:10_000,0:2].tolist()),
+            json.dumps(trajectory[:10_000,0:2].tolist())
+        )
+        fi.write(jString)
 
     if verbal:
         print(f"Test NRMSE: {NRMSE}")

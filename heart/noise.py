@@ -191,7 +191,7 @@ if __name__ == "__main__":
         noise = SinusNoise(0, 40, 2, {"frequency": 4})
         print(noise.thetas)
     elif noise == "white":
-        noise = WhiteNoise(0, 40, 4, {
+        noise = WhiteNoise(0, 40, 3, {
             "cutoff": 4,
             "fs": 400, 
             "order": 1,
@@ -200,9 +200,10 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Noise with name {noise} is not supported")
 
-    t = np.arange(0, 10_000, 50)
+    t = np.arange(0, 2_500, 50)
     actions = np.array([noise(t[i]) for i in range(t.size)])
     fig, ax = plt.subplots(2, 1, figsize=(14, 6))
+    fig.tight_layout()
 
     indicies = t > -1
     t = t[indicies]
@@ -215,13 +216,14 @@ if __name__ == "__main__":
     ax[0].legend(lines, labels)
 
 
-    # amplified = amplify_actions(actions, 10)
-    # ax[1].set_xlabel("Time (s)")
-    # ax[1].set_ylabel("Injected current (mA)")
-    # lines = ax[1].plot(t / 1000, amplified)
-    # labels = [f"$a_{i + 1}$" for i in range(n_actions)]
-    # ax[1].legend(lines, labels)
+    amplified = amplify_actions(actions, 3, 3)
+    ax[1].set_xlabel("Time (s)")
+    ax[1].set_ylabel("Injected current (mA)")
+    lines = ax[1].plot(t / 1000, amplified)
+    labels = [f"$a_{i + 1}$" for i in range(n_actions)]
+    ax[1].legend(lines, labels)
 
     plt.show()
+    #plt.savefig("../Figures/")
     
     

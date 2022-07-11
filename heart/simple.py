@@ -1,5 +1,6 @@
+
 import numpy as np
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, table
 import os
 from os.path import join
 import scipy.sparse as sp
@@ -158,22 +159,24 @@ def showdiff(t_end=200):
 
 def chaos():
     t_start = 0
-    t_end = 50_00
+    t_end = 20_00
 
-    pertubance = np.array([-0.000005, 0.0000001])
+    pertubance = np.array([-0.00001, 0.000001])
     
     n, _ = solve(t_start, t_end)
     p, _ = solve(t_start, t_end, pertubance=pertubance)
 
-    fig, ax = plt.subplots(2, 1, figsize=(20, 10), dpi=90)
+    fig, ax = plt.subplots(1, 1, figsize=(20, 10), dpi=90)
 
     b = 0
     e = 50_000
     diff = np.log(np.abs(n[:,0] - p[:, 0]))
-    ax[0].plot(n[b:e, 0], n[b:e, 1], label="n")
-    ax[0].plot(p[b:e, 0], p[b:e, 1], label="p")
-    ax[0].legend()
-    ax[1].plot(diff[b:e])
+    # ax[0].plot(n[b:e, 0], n[b:e, 1], label="n")
+    # ax[0].plot(p[b:e, 0], p[b:e, 1], label="p")
+    # ax[0].legend()
+    ax.plot(diff[b:e])
+    ax.set_xlabel("t", fontsize=14)
+    ax.set_ylabel("$log(|| s^x_d - s^x_n ||)$", fontsize=14)
     plt.show()
 
     #print(np.mean(diff[-501:-1]))
@@ -393,9 +396,25 @@ def show_actions():
 if __name__ == "__main__":
     #generate_train_data(20_000, "simple", every_nth=every_nth)
     # exit()
-    #healthy()
-    # print(dsdt(np.array([0.5, 0.0]), 0.0, 5.0, 5.0, 3.37015, 0.0))
+    # hstates = healthy(1, t_end=50)
+    # cstates, _ = solve(0, 50)
+    # t = np.linspace(0, 100, cstates.shape[0])
+    # fig, ax = plt.subplots(1, 2, figsize=(18, 8), dpi=90)
+    # ax[0].plot(cstates[:, 0], cstates[:, 1], label="chaotic")
+    # ax[0].plot(hstates[:, 0], hstates[:, 1], label="healthy")
+    # ax[0].set_xlabel("x", fontsize=14)
+    # ax[0].set_ylabel("y", fontsize=14)
+    # ax[0].legend()
+
+    # ax[1].plot(t, cstates[:, 0], label="chaotic")
+    # ax[1].plot(t, hstates[:, 0], label="healthy")
+    # ax[1].set_ylabel("x", fontsize=14)
+    # ax[1].set_xlabel("t", fontsize=14)
+    # ax[1].legend()
+    # plt.show()
     chaos()
+    # print(dsdt(np.array([0.5, 0.0]), 0.0, 5.0, 5.0, 3.37015, 0.0))
+    #chaos()
     #showdiff()
 
     

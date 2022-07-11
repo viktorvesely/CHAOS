@@ -92,9 +92,17 @@ var con_exploit = new ImageSlide(width, height, 0, 0, "controller_exploit.png");
 var arch_heart = new ImageSlide(width, height, 0, 0, "arch_heart.png");
 var arch_local = new ImageSlide(width, height, 0, 0, "arch_local.png");
 var arch_pca = new ImageSlide(width, height, 0, 0, "arch_pca.png");
+var disscussion = new Disscussion(width, height, 0, 0);
+var metric = new ImageSlide(width, height, 0, 0, "metric.png");
+var results = new ImageSlide(width, height, 0, 0, "results.png");
+var val_graph = new ImageSlide(width, height, 0, 0, "val_graph.png");
+var test_graph = new ImageSlide(width, height, 0, 0, "test_graph.png");
+var dis_text = new ImageSlide(width, height, 0, 0, "dis_text.png");
+var title = new ImageSlide(width, height, 0, 0, "title.png");
 
 
 var frames = [
+    title,
     intro,
     extendIntro,
     compareGraph,
@@ -104,9 +112,6 @@ var frames = [
     chaos,
     new SlideEvent(() => { chaos.slower(); }),
     chaos,
-    heart,
-    new SlideEvent(() => { heart.slow(); }),
-    heart,
     twoHearts,
     new SlideEvent(() => { twoHearts.showMasks(); }),
     twoHearts,
@@ -117,10 +122,17 @@ var frames = [
     con_exploit,
     arch_heart,
     arch_local,
-    arch_pca
+    arch_pca,
+    metric,
+    results,
+    val_graph,
+    test_graph,
+    dis_text,
+    disscussion
 ]
 
 var activeFrame = 0;
+frames[activeFrame].start();
 
 function updateDepress() {
     for (const [key, value] of Object.entries(keys)) {
@@ -175,5 +187,27 @@ window.addEventListener("keydown", e => {
 window.addEventListener("keyup", e => {
     keys[e.key] = false;
 });
+
+
+window.addEventListener("click", e => {
+    frames[activeFrame].end();
+    activeFrame++;
+    if (activeFrame >= frames.length) {
+        activeFrame = 0;
+    }
+    frames[activeFrame].start(1);
+})
+
+window.oncontextmenu = function ()
+{
+    frames[activeFrame].end();
+    activeFrame--;
+    if (activeFrame < 0) {
+        activeFrame = frames.length - 1;
+    }
+
+    frames[activeFrame].start(-1);
+    return false;     // cancel default menu
+}
 
 requestAnimationFrame(draw);

@@ -30,7 +30,20 @@ var options = {
     speed: 1,
     trail: 30,
     trajectory: false,
-    disturbed: false
+    disturbed: false,
+    snap: () => {
+
+        let imgURL = canvas.toDataURL("image/png");
+
+        let dlLink = document.createElement('a');
+        dlLink.download = "can_frame";
+        dlLink.href = imgURL;
+        dlLink.dataset.downloadurl = ["image/png", dlLink.download, dlLink.href].join(':');
+
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        document.body.removeChild(dlLink);
+    }
 }
 
 gui.add(options, "reset");
@@ -44,11 +57,15 @@ gui.add(options, "showDetectors");
 gui.add(options, "trail").min(1).max(100).step(1);
 gui.add(options, "trajectory");
 gui.add(options, "disturbed");
+gui.add(options, "snap");
 
 function rescale() {
     let x, y;
     x = window.innerHeight; //window.innerWidth;
     y = window.innerHeight;
+    
+    let tileSize = y / gridy;
+    x = tileSize * gridx;
 
     canvas.width = x;
     canvas.height = y;
@@ -124,7 +141,6 @@ function drawgrid() {
 
     frame = data[index];
 
-
     for (let y = 0; y < gridy; y++) {
         for (let x = 0; x < gridx; x++) {
             let v = frame[y][x] * 255;
@@ -175,6 +191,26 @@ function drawgrid() {
         });
     }
 
+    const width = tileW * gridx;
+    const height = tileH * gridy;
+
+    ctx.strokeStyle = "#aaaaaa";
+    for (let y = 1; y < gridy; y++) {
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.moveTo(0, y * tileH);
+        ctx.lineTo(width, y * tileH);
+        ctx.stroke();
+    }
+
+    for (let x = 1; x < gridx; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * tileW, 0);
+        ctx.lineWidth = 1;
+        ctx.lineTo(x * tileW, height);
+        ctx.stroke();
+    }
+
 } 
 
 function draw() {
@@ -185,6 +221,11 @@ function draw() {
     ctx.fill();
 
     let index = Math.round(frameId);
+
+    if (index < 0) {
+        index = 0;
+        frameId = 0;
+    }
 
     if (index >= data.length) {
         frameId = 0;
