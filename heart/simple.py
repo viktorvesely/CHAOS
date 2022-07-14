@@ -300,22 +300,22 @@ def test(
     real_ref = np.array(real_ref)
     ts = np.linspace(t_start, t_end, trajectory.shape[0])
 
-    b = 1000
-    e = 1900
+    b = 0
+    e = 1100
     if verbal:
-        _, ax = plt.subplots(2, 1, figsize=(12, 10), dpi=90)
+        _, ax = plt.subplots(1, 1, figsize=(12, 10), dpi=90)
         
-        ax[0].plot(ts[b:e], trajectory[b:e,0], label="real x")
-        ax[0].plot(ts[b:e], trajectory[b:e,1], label="real y")
-        ax[0].plot(ts[b:e], real_ref[b:e,0], label="ref x")
-        ax[0].plot(ts[b:e], real_ref[b:e,1], label="ref y")
-        ax[0].set_ylabel("State")
-        ax[0].set_xlabel("Time")
-        ax[0].legend()
+        ax.plot(ts[b:e], trajectory[b:e,0], label="$s^{x}$")
+        ax.plot(ts[b:e], trajectory[b:e,1], label="$s^{y}$")
+        ax.plot(ts[b:e], real_ref[b:e,0], label="$s^{x}_{ref}$")
+        ax.plot(ts[b:e], real_ref[b:e,1], label="$s^{y}_{ref}$")
+        ax.set_ylabel("State")
+        ax.set_xlabel("Time")
+        ax.legend()
 
-        ax[1].plot(ts[b:e], actions[b:e])
-        ax[1].set_ylabel("Action")
-        ax[1].set_xlabel("Time")
+        # ax[1].plot(ts[b:e], actions[b:e])
+        # ax[1].set_ylabel("Action")
+        # ax[1].set_xlabel("Time")
         
         plt.show()
     
