@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --time=17:00:00
+#SBATCH --time=00:05:00
 #SBATCH --nodes=1
-#SBATCH --ntasks=6
+#SBATCH --ntasks=2
 #SBATCH --job-name=heart_job
-#SBATCH --mem=4GB
-#SBATCH --partition=regular
+#SBATCH --mem=2GB
+#SBATCH --partition=short
 module add Biopython/1.78-foss-2020a-Python-3.8.2
-python3 recorder.py --name peregrine_var_noise --cores 6
+python3 recorder.py --name per_test --cores 2

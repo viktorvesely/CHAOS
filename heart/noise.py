@@ -29,8 +29,8 @@ class WhiteNoise:
     
     block_duration = 12_000 # ms
     washout = 200
-    amp_max = 3.0
-    amp_min = 1.0
+    amp_max = 6.0
+    amp_min = 3.0
     cut_max = 5
     cut_min = 2
 
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Noise with name {noise} is not supported")
 
-    t = np.arange(0, 10_000, 50)
+    t = np.arange(0, 5_000, 50)
     actions = np.array([noise(t[i]) for i in range(t.size)])
     fig, ax = plt.subplots(2, 1, figsize=(14, 6))
 
@@ -214,6 +214,7 @@ if __name__ == "__main__":
     labels = [f"$a_{i + 1}$" for i in range(n_actions)]
     ax[0].legend(lines, labels)
 
+    ax[1].plot(np.random.random(actions.shape[0] * 100))
 
     # amplified = amplify_actions(actions, 10)
     # ax[1].set_xlabel("Time (s)")

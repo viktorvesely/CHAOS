@@ -271,7 +271,7 @@ if __name__ == '__main__':
     if args.cores > 1:
         duration = (pars.get("t_end") - pars.get("t_start")) / 1000
         print(f"Simulating {args.cores} heart(s) simultaneously for {duration} seconds")
-        pool_args = [ [name, core, args, path, pars]  for core in range(args.cores)]
+        pool_args = [ [name, core, args, path, pars] for core in range(args.cores)]
         
         with Pool(args.cores) as p:
             p.map(setup_recorder, pool_args)
