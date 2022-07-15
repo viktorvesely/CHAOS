@@ -33,6 +33,8 @@ class WhiteNoise:
     amp_min = 3.0
     cut_max = 5
     cut_min = 2
+    
+    mag_max = 30.0
 
     def __init__(self, minAction, maxAction, numActions, settings):
         self.max = maxAction    
